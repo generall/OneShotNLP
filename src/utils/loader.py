@@ -20,19 +20,23 @@ class MentionsLoader:
             yield line.strip('\n').split('\t')
 
     def __init__(self, filename):
-        self.fd = open(filename, 'r')
-        self.reader = self.read_lines(self.fd)
-
+        self.filename = filename
         self.mention_placeholder = "XXXXX"
 
-    def read_batch(self, batch_size=1000):
-        batch = list(itertools.islice(self.reader, batch_size))
+    def read_batches(self, batch_size=1000):
+        fd = open(self.filename, 'r')
+        reader = self.read_lines(fd)
 
-        groups = defaultdict(list)
-        for entity in batch:
-            groups[entity[0]].append(entity)
+        while True:
+            batch = list(itertools.islice(reader, batch_size))
+            groups = defaultdict(list)
+            for entity in batch:
+                groups[entity[0]].append(entity)
 
-        return groups
+            yield groups
+
+            if len(batch) < batch_size:
+                break
 
     def row_to_example(self, row):
         """
@@ -86,7 +90,7 @@ class MentionsLoader:
 if __name__ == '__main__':
     loader = MentionsLoader(MentionsLoader.test_data)
 
-    batch = loader.read_batch()
+    batch = next(loader.read_batches())
 
     sentences, sentences_other, match = loader.random_batch_constructor(batch, 10)
 

@@ -22,13 +22,14 @@ class SparseLinear(nn.Linear):
 
 class CDSSM(nn.Module):
 
-    def __init__(self,
-                 conv_input_size=500,
-                 conv_out_size=300,
-                 out_size=128,
-                 window=3,
-                 embedding_size=20000,
-                 is_cuda=False):
+    def __init__(
+            self,
+            conv_input_size=500,
+            conv_out_size=300,
+            out_size=128,
+            window=3,
+            embedding_size=20000,
+    ):
         super(CDSSM, self).__init__()
 
         self.embedding_size = embedding_size
@@ -36,16 +37,12 @@ class CDSSM(nn.Module):
         self.out_size = out_size
         self.conv_out_size = conv_out_size
         self.conv_input_size = conv_input_size
-        self.is_cuda = is_cuda
 
         self.sparse_linear = SparseLinear(dict_size=self.embedding_size, out_features=self.conv_input_size)
         self.conv_nn = torch.nn.Conv1d(self.conv_input_size, self.conv_out_size, self.window)
         self.feed_forvard = nn.Linear(in_features=self.conv_out_size, out_features=self.out_size)
 
-        if self.is_cuda:
-            self.cuda()
-
-    def process_sentence(self, sentences):
+    def process_sentences(self, sentences):
         """
         :param sentences Tensor (batch_size, sentence_length, word_depth)
         """
