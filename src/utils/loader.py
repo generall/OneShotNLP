@@ -3,7 +3,7 @@ import os
 import random
 from collections import defaultdict
 
-from src.config import DATA_DIR
+from config import DATA_DIR
 
 
 class MentionsLoader:
