@@ -16,13 +16,18 @@ import spacy
 spacy_en = spacy.load('en')
 tqdm.monitor_interval = 0
 
+
 def tokenizer(text, alpha_only=True): # create a tokenizer function
     return [tok.text for tok in spacy_en.tokenizer(text) if (not alpha_only or tok.is_alpha)]
 
 
-loader = MentionsLoader(MentionsLoader.test_data)
+use_cuda = False
 
+loader = MentionsLoader(MentionsLoader.test_data)
 model = Siames()
+if use_cuda:
+    model.cuda()
+
 
 epoch_max = 10
 batch_size = 500
@@ -51,8 +56,12 @@ for epoch in pbar:
 
         batch_a = Variable(torch.from_numpy(pad_batch(encode_texts(sentences_a, dict_size, tokenizer=tokenizer))))
         batch_b = Variable(torch.from_numpy(pad_batch(encode_texts(sentences_b, dict_size, tokenizer=tokenizer))))
-
         target = Variable(torch.FloatTensor(match))
+
+        if use_cuda:
+            batch_a.cuda()
+            batch_b.cuda()
+            target.cuda()
 
         distances = model(batch_a, batch_b)
 
