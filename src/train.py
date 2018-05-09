@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
+from tqdm import tqdm
 
 from model.siames import Siames
 from utils.loader import MentionsLoader
@@ -14,7 +14,7 @@ from utils.text_tools import encode_texts, pad_batch
 
 import spacy
 spacy_en = spacy.load('en')
-
+tqdm.monitor_interval = 0
 
 def tokenizer(text, alpha_only=True): # create a tokenizer function
     return [tok.text for tok in spacy_en.tokenizer(text) if (not alpha_only or tok.is_alpha)]
@@ -44,7 +44,8 @@ def loss_foo(distances, target, alpha = 0.4):
     return torch.sum(diff[diff > alpha])
 
 
-for epoch in range(epoch_max):
+pbar = tqdm(range(epoch_max))
+for epoch in pbar:
     for idx, batch in enumerate(loader.read_batches(batch_size)):
         sentences_a, sentences_b, match = loader.random_batch_constructor(batch, batch_sample_size)
 
@@ -56,6 +57,8 @@ for epoch in range(epoch_max):
         distances = model(batch_a, batch_b)
 
         loss = loss_foo(distances, target)
+
+        pbar.set_description("Loss {0:.1f}".format(loss))
 
         optimizer.zero_grad()
         loss.backward()

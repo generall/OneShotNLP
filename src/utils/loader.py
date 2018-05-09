@@ -33,7 +33,9 @@ class MentionsLoader:
             for entity in batch:
                 groups[entity[0]].append(entity)
 
-            yield groups
+            if len(groups) > 1:
+                # Skip groups with only one entity
+                yield groups
 
             if len(batch) < batch_size:
                 break
@@ -92,7 +94,7 @@ if __name__ == '__main__':
 
     batch = next(loader.read_batches())
 
-    sentences, sentences_other, match = loader.random_batch_constructor(batch, 10)
+    sentences, sentences_other, match = loader.random_batch_constructor(batch, 100)
 
     print(sentences[3])
     print(sentences_other[3])
