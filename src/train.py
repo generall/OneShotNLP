@@ -21,7 +21,7 @@ def tokenizer(text, alpha_only=True): # create a tokenizer function
     return [tok.text for tok in spacy_en.tokenizer(text) if (not alpha_only or tok.is_alpha)]
 
 
-use_cuda = False
+use_cuda = True
 
 loader = MentionsLoader(MentionsLoader.test_data)
 model = Siames()
@@ -29,7 +29,7 @@ if use_cuda:
     model.cuda()
 
 
-epoch_max = 10
+epoch_max = 100
 batch_size = 500
 batch_sample_size = 10
 dict_size = 20000
@@ -59,9 +59,9 @@ for epoch in pbar:
         target = Variable(torch.FloatTensor(match))
 
         if use_cuda:
-            batch_a.cuda()
-            batch_b.cuda()
-            target.cuda()
+            batch_a = batch_a.cuda()
+            batch_b = batch_b.cuda()
+            target = target.cuda()
 
         distances = model(batch_a, batch_b)
 
