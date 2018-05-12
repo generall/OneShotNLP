@@ -1,10 +1,9 @@
 """
 This script should perform training of the CDSSM model
 """
+import nltk
 import torch
 from torch.autograd import Variable
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
 
@@ -12,16 +11,14 @@ from model.siames import Siames
 from utils.loader import MentionsLoader
 from utils.text_tools import encode_texts, pad_batch
 
-import spacy
-spacy_en = spacy.load('en')
 tqdm.monitor_interval = 0
 
 
-def tokenizer(text, alpha_only=True): # create a tokenizer function
-    return [tok.text for tok in spacy_en.tokenizer(text) if (not alpha_only or tok.is_alpha)]
+def tokenizer(text, alpha_only=True):  # create a tokenizer function
+    return [tok for tok in nltk.word_tokenize(text) if (not alpha_only or tok.isalpha())]
 
 
-use_cuda = True
+use_cuda = False
 
 loader = MentionsLoader(MentionsLoader.test_data)
 model = Siames()
@@ -29,7 +26,7 @@ if use_cuda:
     model.cuda()
 
 
-epoch_max = 100
+epoch_max = 10
 batch_size = 500
 batch_sample_size = 10
 dict_size = 20000
@@ -37,7 +34,7 @@ dict_size = 20000
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
 
-def loss_foo(distances, target, alpha = 0.4):
+def loss_foo(distances, target, alpha=0.4):
     """
 
     :param alpha:

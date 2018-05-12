@@ -24,7 +24,7 @@ class MentionsLoader:
         self.mention_placeholder = "XXXXX"
 
     def read_batches(self, batch_size=1000):
-        fd = open(self.filename, 'r')
+        fd = open(self.filename, 'r', encoding='utf-8')
         reader = self.read_lines(fd)
 
         while True:
