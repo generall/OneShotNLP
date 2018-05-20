@@ -3,10 +3,15 @@ import os
 import random
 from collections import defaultdict
 
+import torch
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+
 from config import DATA_DIR
+from utils.text_tools import pad_batch, encode_texts
 
 
-class MentionsLoader:
+class MentionsLoader(DataLoader):
     """
     This is custom test loader for mentions data
 
@@ -19,16 +24,35 @@ class MentionsLoader:
         for line in fd:
             yield line.strip('\n').split('\t')
 
-    def __init__(self, filename):
+    def __init__(
+            self,
+            filename,
+            read_size,
+            batch_size,
+            dict_size,
+            tokenizer
+    ):
+        """
+
+        :param filename: file to read from
+        :param read_size: number of sentences to read from file per batch
+        :param batch_size: size of output batch
+        :param dict_size: max number of features
+        :param tokenizer: function to split text into tokens
+        """
+        self.tokenizer = tokenizer
+        self.dict_size = dict_size
+        self.batch_size = batch_size
+        self.read_size = read_size
         self.filename = filename
         self.mention_placeholder = "XXXXX"
 
-    def read_batches(self, batch_size=1000):
+    def read_batches(self):
         fd = open(self.filename, 'r', encoding='utf-8')
         reader = self.read_lines(fd)
 
         while True:
-            batch = list(itertools.islice(reader, batch_size))
+            batch = list(itertools.islice(reader, self.read_size))
             groups = defaultdict(list)
             for entity in batch:
                 groups[entity[0]].append(entity)
@@ -37,7 +61,7 @@ class MentionsLoader:
                 # Skip groups with only one entity
                 yield groups
 
-            if len(batch) < batch_size:
+            if len(batch) < self.read_size:
                 break
 
     def row_to_example(self, row):
@@ -88,13 +112,33 @@ class MentionsLoader:
 
         return sentences, sentences_other, match
 
+    def __iter__(self):
+        """
+        Iterate over data.
+
+        :return:
+        """
+        for batch in self.read_batches():
+            sentences_a, sentences_b, match = self.random_batch_constructor(batch, self.batch_size)
+
+            batch_a = Variable(torch.from_numpy(pad_batch(encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer))))
+            batch_b = Variable(torch.from_numpy(pad_batch(encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer))))
+            target = Variable(torch.FloatTensor(match))
+
+            yield batch_a, batch_b, target
+
+    def __len__(self):
+        with open(self.filename) as fd:
+            num_lines = sum(1 for _ in fd)
+            return int(num_lines / self.read_size)
+
 
 if __name__ == '__main__':
     loader = MentionsLoader(MentionsLoader.test_data)
 
-    batch = next(loader.read_batches())
+    batch1 = next(loader.read_batches())
 
-    sentences, sentences_other, match = loader.random_batch_constructor(batch, 100)
+    sentences, sentences_other, match = loader.random_batch_constructor(batch1, 100)
 
     print(sentences[3])
     print(sentences_other[3])
