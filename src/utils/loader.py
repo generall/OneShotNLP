@@ -1,7 +1,10 @@
+import gzip
 import itertools
 import os
 import random
+import re
 from collections import defaultdict
+from zipfile import ZipFile
 
 import torch
 from torch.autograd import Variable
@@ -47,8 +50,21 @@ class MentionsLoader(DataLoader):
         self.filename = filename
         self.mention_placeholder = "XXXXX"
 
+    @classmethod
+    def get_file_iterator(cls, filename):
+        if re.match(r'.*\.gz$', filename):
+            fd = gzip.open(filename, 'rt', encoding='utf-8')
+        elif re.match(r'.*\.zip$', filename):
+            arch = ZipFile(filename)
+            zipname = arch.namelist()[0]
+            fd = map(lambda x: x.decode('utf-8'), arch.open(zipname))
+        else:
+            fd = open(filename, 'r', encoding='utf-8')
+
+        return fd
+
     def read_batches(self):
-        fd = open(self.filename, 'r', encoding='utf-8')
+        fd = self.get_file_iterator(self.filename)
         reader = self.read_lines(fd)
 
         while True:
@@ -121,16 +137,18 @@ class MentionsLoader(DataLoader):
         for batch in self.read_batches():
             sentences_a, sentences_b, match = self.random_batch_constructor(batch, self.batch_size)
 
-            batch_a = Variable(torch.from_numpy(pad_batch(encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer))))
-            batch_b = Variable(torch.from_numpy(pad_batch(encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer))))
+            batch_a = Variable(
+                torch.from_numpy(pad_batch(encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer))))
+            batch_b = Variable(
+                torch.from_numpy(pad_batch(encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer))))
             target = Variable(torch.FloatTensor(match))
 
             yield batch_a, batch_b, target
 
     def __len__(self):
-        with open(self.filename) as fd:
-            num_lines = sum(1 for _ in fd)
-            return int(num_lines / self.read_size)
+        fd = self.get_file_iterator(self.filename)
+        num_lines = sum(1 for _ in fd)
+        return int(num_lines / self.read_size)
 
 
 if __name__ == '__main__':

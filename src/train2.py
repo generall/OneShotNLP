@@ -1,6 +1,8 @@
 """
 This script should perform training of the CDSSM model
 """
+import argparse
+
 import nltk
 import torch
 from torch.autograd import Variable
@@ -8,8 +10,10 @@ import torch.optim as optim
 from torchlite.torch.learner import Learner
 from torchlite.torch.learner.cores import ClassifierCore
 from torchlite.torch.metrics import Metric
+from torchlite.torch.train_callbacks import TensorboardVisualizerCallback
 from tqdm import tqdm
 
+from config import TB_DIR
 from model.siames import Siames
 from utils.loader import MentionsLoader
 
@@ -46,28 +50,43 @@ class DistAccuracy(Metric):
         return positive / total
 
 
-epoch_max = 10
-read_size = 500
-batch_size = 10
-dict_size = 20000
+parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
 
-use_cuda = False
+parser.add_argument('--train-data', dest='train_data', help='path to train data')
+parser.add_argument('--valid-data', dest='valid_data', help='path to valid data')
 
-train_loader = MentionsLoader(MentionsLoader.test_data, read_size=read_size, batch_size=batch_size, dict_size=dict_size,
-                              tokenizer=tokenizer)
+parser.add_argument('--epoch', type=int, default=10)
+parser.add_argument('--read-size', type=int, default=500)
+parser.add_argument('--batch-size', type=int, default=10)
+parser.add_argument('--dict-size', type=int, default=20000)
+parser.add_argument('--cuda', type=bool, default=False)
 
-test_loader = MentionsLoader(MentionsLoader.test_data, read_size=read_size, batch_size=batch_size, dict_size=dict_size,
-                             tokenizer=tokenizer)
+args = parser.parse_args()
 
+
+train_loader = MentionsLoader(
+    args.train_data,
+    read_size=args.read_size,
+    batch_size=args.batch_size,
+    dict_size=args.dict_size,
+    tokenizer=tokenizer
+)
+
+test_loader = MentionsLoader(
+    args.valid_data,
+    read_size=args.read_size,
+    batch_size=args.batch_size,
+    dict_size=args.dict_size,
+    tokenizer=tokenizer
+)
+
+loss = loss_foo
 model = Siames()
 
 optimizer = optim.RMSprop(model.parameters(), lr=1e-3)
-
-loss = loss_foo
-
-learner = Learner(ClassifierCore(model, optimizer, loss), use_cuda=use_cuda)
-
 metrics = [DistAccuracy()]
+callbacks = [TensorboardVisualizerCallback(TB_DIR)]
 
-learner.train(epoch_max, metrics, train_loader, test_loader, callbacks=None)
+learner = Learner(ClassifierCore(model, optimizer, loss), use_cuda=args.cuda)
+learner.train(args.epoch, metrics, train_loader, test_loader, callbacks=callbacks)
 
