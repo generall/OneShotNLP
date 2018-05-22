@@ -10,10 +10,10 @@ import torch.optim as optim
 from torchlite.torch.learner import Learner
 from torchlite.torch.learner.cores import ClassifierCore
 from torchlite.torch.metrics import Metric
-from torchlite.torch.train_callbacks import TensorboardVisualizerCallback
+from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback
 from tqdm import tqdm
 
-from config import TB_DIR
+from config import TB_DIR, MODELS_DIR
 from model.siames import Siames
 from utils.loader import MentionsLoader
 
@@ -63,7 +63,6 @@ parser.add_argument('--cuda', type=bool, default=False)
 
 args = parser.parse_args()
 
-
 train_loader = MentionsLoader(
     args.train_data,
     read_size=args.read_size,
@@ -85,8 +84,10 @@ model = Siames()
 
 optimizer = optim.RMSprop(model.parameters(), lr=1e-3)
 metrics = [DistAccuracy()]
-callbacks = [TensorboardVisualizerCallback(TB_DIR)]
+callbacks = [
+    TensorboardVisualizerCallback(TB_DIR),
+    ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=1)
+]
 
 learner = Learner(ClassifierCore(model, optimizer, loss), use_cuda=args.cuda)
 learner.train(args.epoch, metrics, train_loader, test_loader, callbacks=callbacks)
-
