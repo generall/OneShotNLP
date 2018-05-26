@@ -44,8 +44,15 @@ class DistAccuracy(Metric):
         return "dist_accuracy"
 
     def __call__(self, y_pred, y_true):
+        """
+
+        :param y_pred: Distance between objects.
+        :param y_true: ???
+        :return:
+        """
+
         diff = torch.abs(y_pred - y_true)
-        positive = torch.sum((diff > self.alpha).int()).data.item()
+        positive = torch.sum((diff < self.alpha).int()).data.item()
         total = y_true.shape[0]
         return positive / total
 
