@@ -5,13 +5,11 @@ import argparse
 
 import nltk
 import torch
-from torch.autograd import Variable
 import torch.optim as optim
 from torchlite.torch.learner import Learner
 from torchlite.torch.learner.cores import ClassifierCore
 from torchlite.torch.metrics import Metric
 from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback
-from tqdm import tqdm
 
 from config import TB_DIR, MODELS_DIR
 from model.siames import Siames
@@ -87,13 +85,17 @@ test_loader = MentionsLoader(
 )
 
 loss = loss_foo
-model = Siames()
+model = Siames(
+    word_emb_sizes=[1000, 500],
+    conv_sizes=[400, 300],
+    out_size=[256, 128]
+)
 
 optimizer = optim.RMSprop(model.parameters(), lr=1e-3)
 metrics = [DistAccuracy()]
 callbacks = [
     TensorboardVisualizerCallback(TB_DIR),
-    ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=1)
+    ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=10)
 ]
 
 learner = Learner(ClassifierCore(model, optimizer, loss), use_cuda=args.cuda)

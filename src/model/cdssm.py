@@ -1,3 +1,4 @@
+import itertools
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
@@ -20,27 +21,82 @@ class SparseLinear(nn.Linear):
         return res
 
 
+def pairwise(iterable):
+    """
+    s -> (s0,s1), (s1,s2), (s2, s3), ...
+
+    :param iterable:
+    :return:
+    """
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+
 class CDSSM(nn.Module):
 
     def __init__(
             self,
-            conv_input_size=500,
-            conv_out_size=300,
-            out_size=128,
+            word_emb_sizes=None,
+            conv_sizes=None,
+            out_size=None,
             window=3,
             embedding_size=20000,
     ):
         super(CDSSM, self).__init__()
 
+        if out_size is None:
+            out_size = [128]
+
+        if conv_sizes is None:
+            conv_sizes = [300]
+
+        if word_emb_sizes is None:
+            word_emb_sizes = [500]
+
         self.embedding_size = embedding_size
         self.window = window
         self.out_size = out_size
-        self.conv_out_size = conv_out_size
-        self.conv_input_size = conv_input_size
+        self.conv_sizes = conv_sizes
+        self.word_emb_sizes = word_emb_sizes
 
-        self.sparse_linear = SparseLinear(dict_size=self.embedding_size, out_features=self.conv_input_size)
-        self.conv_nn = torch.nn.Conv1d(self.conv_input_size, self.conv_out_size, self.window)
-        self.feed_forvard = nn.Linear(in_features=self.conv_out_size, out_features=self.out_size)
+        sparse_linear = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
+
+        input_to_word_vect = [sparse_linear]
+
+        for from_size, to_size in pairwise(self.word_emb_sizes):
+            input_to_word_vect += [
+                nn.Linear(from_size, to_size),
+                nn.ReLU()
+            ]
+
+        self.input_to_vect = nn.Sequential(*input_to_word_vect)
+
+        convolutions = [
+            torch.nn.Conv1d(self.word_emb_sizes[-1], self.conv_sizes[0], self.window),
+            nn.ReLU()
+        ]
+
+        for from_size, to_size in pairwise(self.conv_sizes):
+            convolutions += [
+                torch.nn.Conv1d(from_size, to_size, self.window),
+                nn.ReLU()
+            ]
+
+        self.convolution = nn.Sequential(*convolutions)
+
+        feed_forward = [
+            nn.Linear(in_features=self.conv_sizes[-1], out_features=self.out_size[0]),
+            nn.ReLU()
+        ]
+
+        for from_size, to_size in pairwise(self.out_size):
+            convolutions += [
+                torch.nn.Linear(from_size, to_size),
+                nn.ReLU()
+            ]
+
+        self.feed_forward = nn.Sequential(*feed_forward)
 
     def process_sentences(self, sentences):
         """
@@ -48,19 +104,19 @@ class CDSSM(nn.Module):
         """
 
         # Compress sparse ngram representation into dense vectors
-        sentences = F.relu(self.sparse_linear(sentences))
+        sentences = self.input_to_vect(sentences)
 
         # Prepare for convolution and apply it.
         # Combine 3-word window into single vector
         sentences = sentences.transpose(1, 2)
 
-        conv_embedding = F.relu(self.conv_nn(sentences))
+        conv_embedding = self.convolution(sentences)
 
         # Apply max-pooling to compress variable-length sequence of 3-word vectors into single document vector
         convolutions_size = conv_embedding.size()[2]
-        max_pooling = F.max_pool1d(conv_embedding, kernel_size=convolutions_size).view(-1, self.conv_out_size)
+        max_pooling = F.max_pool1d(conv_embedding, kernel_size=convolutions_size).view(-1, self.conv_sizes[-1])
 
         # Compress pooled representation even more
-        res = F.relu(self.feed_forvard(max_pooling))
+        res = self.feed_forward(max_pooling)
 
         return res
