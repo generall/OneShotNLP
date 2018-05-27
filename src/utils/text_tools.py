@@ -91,19 +91,24 @@ def pad_batch(batch):
     return np.stack(map(lambda x: pad_numpy(x, max_word_len)[0], pad_list(batch)))
 
 
-def encode_ngram(token, dict_size):
+def encode_ngram(token, dict_size, sizes=None):
     """
     Converts word into list of trigram hashes
 
+    :param sizes:
     :param token:
     :param dict_size:
     :return:
     """
+    if sizes is None:
+        sizes = [3, 4]
+
     token = " {} ".format(token)
     word_ngrams = []
-    for ngram in ngrams(token, 3):
-        crc32_hash = zlib.crc32(str(ngram).encode())
-        word_ngrams.append(crc32_hash % dict_size)
+    for size in sizes:
+        for ngram in ngrams(token, size):
+            crc32_hash = zlib.crc32(str(ngram).encode())
+            word_ngrams.append(crc32_hash % dict_size)
     return word_ngrams
 
 

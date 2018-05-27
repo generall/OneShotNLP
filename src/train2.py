@@ -88,7 +88,8 @@ loss = loss_foo
 model = Siames(
     word_emb_sizes=[1000, 500],
     conv_sizes=[400, 300],
-    out_size=[256, 128]
+    out_size=[256, 128],
+    embedding_size=args.dict_size
 )
 
 optimizer = optim.RMSprop(model.parameters(), lr=1e-3)
