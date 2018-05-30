@@ -60,12 +60,12 @@ parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
 parser.add_argument('--train-data', dest='train_data', help='path to train data', default=MentionsLoader.test_data)
 parser.add_argument('--valid-data', dest='valid_data', help='path to valid data', default=MentionsLoader.test_data)
 
-parser.add_argument('--restore-model', dest='restore_model', help='path to saved model', default=os.path.join(MODELS_DIR, 'Siames_epoch-500.pth'))
+parser.add_argument('--restore-model', dest='restore_model', help='path to saved model') #, default=os.path.join(MODELS_DIR, 'Siames_epoch-500.pth'))
 
 parser.add_argument('--epoch', type=int, default=100)
 parser.add_argument('--save-every', type=int, default=10)
 parser.add_argument('--read-size', type=int, default=500)
-parser.add_argument('--batch-size', type=int, default=100)
+parser.add_argument('--batch-size', type=int, default=50)
 parser.add_argument('--dict-size', type=int, default=50000)
 parser.add_argument('--cuda', type=bool, default=False)
 
