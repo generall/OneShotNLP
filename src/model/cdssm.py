@@ -64,7 +64,7 @@ class CDSSM(nn.Module):
 
         input_to_word_vect = [sparse_linear]
 
-        activation = nn.Sigmoid
+        activation = nn.LeakyReLU
 
         for from_size, to_size in pairwise(self.word_emb_sizes):
             input_to_word_vect += [
