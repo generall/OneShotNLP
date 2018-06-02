@@ -64,36 +64,38 @@ class CDSSM(nn.Module):
 
         input_to_word_vect = [sparse_linear]
 
+        activation = nn.Sigmoid
+
         for from_size, to_size in pairwise(self.word_emb_sizes):
             input_to_word_vect += [
                 nn.Linear(from_size, to_size),
-                nn.ReLU()
+                activation()
             ]
 
         self.input_to_vect = nn.Sequential(*input_to_word_vect)
 
         convolutions = [
             torch.nn.Conv1d(self.word_emb_sizes[-1], self.conv_sizes[0], self.window),
-            nn.ReLU()
+            activation()
         ]
 
         for from_size, to_size in pairwise(self.conv_sizes):
             convolutions += [
                 torch.nn.Conv1d(from_size, to_size, self.window),
-                nn.ReLU()
+                activation()
             ]
 
         self.convolution = nn.Sequential(*convolutions)
 
         feed_forward = [
             nn.Linear(in_features=self.conv_sizes[-1], out_features=self.out_size[0]),
-            nn.ReLU()
+            activation()
         ]
 
         for from_size, to_size in pairwise(self.out_size):
             convolutions += [
                 torch.nn.Linear(from_size, to_size),
-                nn.ReLU()
+                activation()
             ]
 
         self.feed_forward = nn.Sequential(*feed_forward)
