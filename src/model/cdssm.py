@@ -45,6 +45,8 @@ class CDSSM(nn.Module):
     ):
         super(CDSSM, self).__init__()
 
+        activation = nn.LeakyReLU
+
         if out_size is None:
             out_size = [128]
 
@@ -63,8 +65,6 @@ class CDSSM(nn.Module):
         sparse_linear = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
 
         input_to_word_vect = [sparse_linear]
-
-        activation = nn.ReLU
 
         for from_size, to_size in pairwise(self.word_emb_sizes):
             input_to_word_vect += [
