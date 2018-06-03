@@ -2,8 +2,11 @@
 This script should perform training of the CDSSM model
 """
 import argparse
+import datetime
 
 import os
+from time import strftime, gmtime
+
 import nltk
 import torch
 import torch.optim as optim
@@ -25,8 +28,8 @@ def tokenizer(text, alpha_only=True):  # create a tokenizer function
 
 parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
 
-parser.add_argument('--train-data', dest='train_data', help='path to train data', default=MentionsLoader.test_data)
-parser.add_argument('--valid-data', dest='valid_data', help='path to valid data', default=MentionsLoader.test_data)
+parser.add_argument('--train-data', dest='train_data', help='path to train data', default=MentionsLoader.debug_train)
+parser.add_argument('--valid-data', dest='valid_data', help='path to valid data', default=MentionsLoader.debug_valid)
 
 parser.add_argument('--restore-model', dest='restore_model', help='path to saved model') # default=os.path.join(MODELS_DIR, 'Siames_epoch-150.pth'))
 
@@ -36,6 +39,9 @@ parser.add_argument('--read-size', type=int, default=500)
 parser.add_argument('--batch-size', type=int, default=50)
 parser.add_argument('--dict-size', type=int, default=50000)
 parser.add_argument('--cuda', type=bool, default=False)
+
+parser.add_argument('--run', default='none', help='name of current run for tensorboard')
+
 
 args = parser.parse_args()
 
@@ -71,10 +77,16 @@ if args.restore_model:
 optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
 
+run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+
+tb_dir = os.path.join(TB_DIR, run_name)
+if not os.path.exists(tb_dir):
+    os.mkdir(tb_dir)
+
 metrics = [DistAccuracy()]
 callbacks = [
     ModelParamsLogger(),
-    TensorboardVisualizerCallback(TB_DIR),
+    TensorboardVisualizerCallback(tb_dir),
     ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=args.save_every)
 ]
 

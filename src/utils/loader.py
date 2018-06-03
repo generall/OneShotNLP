@@ -22,6 +22,9 @@ class MentionsLoader(DataLoader):
 
     test_data = os.path.join(DATA_DIR, 'data_example.tsv')
 
+    debug_train = os.path.join(DATA_DIR, 'debug_data', 'simple_data2_train.tsv')
+    debug_valid = os.path.join(DATA_DIR, 'debug_data', 'simple_data2_valid.tsv')
+
     @classmethod
     def read_lines(cls, fd):
         for line in fd:

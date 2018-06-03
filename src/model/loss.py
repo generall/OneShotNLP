@@ -13,10 +13,51 @@ def naive_loss(distances, target):
     return torch.sum(diff)
 
 
-class DistAccuracy(Metric):
+class TripletLoss:
 
     def __init__(self, alpha=0.4):
         self.alpha = alpha
+
+    def __call__(self, distances, target):
+        """
+
+        :param distances: [ dist(base_1, pos_1), dist(base_1, neg_1), dist(base_2, pos_2), ... ]
+        :param target: not used
+        :return:
+        """
+        pairs = distances.view(-1, 2)
+        positives = pairs[:, 0]
+        negatives = pairs[:, 1]
+        errors = positives - negatives + self.alpha
+        return torch.sum(errors[errors > 0])
+
+
+class TripletAccuracy(Metric):
+
+    def __init__(self, alpha=0.4):
+        self.alpha = alpha
+
+    @property
+    def get_name(self):
+        return "triplet_accuracy"
+
+    def __call__(self, distances, target):
+        """
+
+        :param distances: [ dist(base_1, pos_1), dist(base_1, neg_1), dist(base_2, pos_2), ... ]
+        :param target: not used
+        :return:
+        """
+        total = distances.shape[0] / 2
+        pairs = distances.view(-1, 2)
+        positives = pairs[:, 0]
+        negatives = pairs[:, 1]
+        errors = positives - negatives + self.alpha
+        true_pred = (errors <= 0).int().sum()
+        return true_pred / total
+
+
+class DistAccuracy(Metric):
 
     @property
     def get_name(self):
