@@ -5,18 +5,15 @@ import argparse
 import datetime
 
 import os
-from time import strftime, gmtime
 
 import nltk
-import torch
 import torch.optim as optim
 from torchlite.torch.learner import Learner
 from torchlite.torch.learner.cores import ClassifierCore
-from torchlite.torch.metrics import Metric
 from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback
 
 from config import TB_DIR, MODELS_DIR
-from model.loss import DistAccuracy, naive_loss
+from model.loss import DistAccuracy, naive_loss, TripletLoss, TripletAccuracy
 from model.siames import Siames
 from utils.loader import MentionsLoader
 from utils.loggers import ModelParamsLogger
@@ -31,7 +28,8 @@ parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
 parser.add_argument('--train-data', dest='train_data', help='path to train data', default=MentionsLoader.debug_train)
 parser.add_argument('--valid-data', dest='valid_data', help='path to valid data', default=MentionsLoader.debug_valid)
 
-parser.add_argument('--restore-model', dest='restore_model', help='path to saved model') # default=os.path.join(MODELS_DIR, 'Siames_epoch-150.pth'))
+parser.add_argument('--restore-model', dest='restore_model',
+                    help='path to saved model')  # default=os.path.join(MODELS_DIR, 'Siames_epoch-150.pth'))
 
 parser.add_argument('--epoch', type=int, default=100)
 parser.add_argument('--save-every', type=int, default=10)
@@ -41,7 +39,6 @@ parser.add_argument('--dict-size', type=int, default=50000)
 parser.add_argument('--cuda', type=bool, default=False)
 
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
-
 
 args = parser.parse_args()
 
@@ -61,7 +58,7 @@ test_loader = MentionsLoader(
     tokenizer=tokenizer
 )
 
-loss = naive_loss
+loss = TripletLoss()
 
 model = Siames(
     debug=True,
@@ -76,14 +73,16 @@ if args.restore_model:
 
 optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
-
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 
 tb_dir = os.path.join(TB_DIR, run_name)
 if not os.path.exists(tb_dir):
     os.mkdir(tb_dir)
 
-metrics = [DistAccuracy()]
+metrics = [
+    TripletAccuracy(),
+    DistAccuracy()
+]
 callbacks = [
     ModelParamsLogger(),
     TensorboardVisualizerCallback(tb_dir),
