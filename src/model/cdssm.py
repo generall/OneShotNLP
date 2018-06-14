@@ -45,7 +45,7 @@ class CDSSM(nn.Module):
     ):
         super(CDSSM, self).__init__()
 
-        activation = nn.LeakyReLU
+        activation = nn.Tanh
 
         if out_size is None:
             out_size = [128]

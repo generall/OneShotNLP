@@ -33,10 +33,12 @@ parser.add_argument('--restore-model', dest='restore_model',
 
 parser.add_argument('--epoch', type=int, default=100)
 parser.add_argument('--save-every', type=int, default=10)
-parser.add_argument('--read-size', type=int, default=500)
-parser.add_argument('--batch-size', type=int, default=50)
+parser.add_argument('--read-size', type=int, default=250)
+parser.add_argument('--batch-size', type=int, default=1000)
 parser.add_argument('--dict-size', type=int, default=50000)
+
 parser.add_argument('--cuda', type=bool, default=False)
+parser.add_argument('--ngram', type=bool, default=False)
 
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
 
@@ -47,7 +49,8 @@ train_loader = MentionsLoader(
     read_size=args.read_size,
     batch_size=args.batch_size,
     dict_size=args.dict_size,
-    tokenizer=tokenizer
+    tokenizer=tokenizer,
+    ngrams_flag=args.ngram
 )
 
 test_loader = MentionsLoader(
@@ -55,16 +58,17 @@ test_loader = MentionsLoader(
     read_size=args.read_size,
     batch_size=args.batch_size,
     dict_size=args.dict_size,
-    tokenizer=tokenizer
+    tokenizer=tokenizer,
+    ngrams_flag=args.ngram
 )
 
 loss = TripletLoss()
 
 model = Siames(
     debug=True,
-    word_emb_sizes=[500],
-    conv_sizes=[400, 300],
-    out_size=[200],
+    word_emb_sizes=[50],
+    conv_sizes=[64],
+    out_size=[50],
     embedding_size=args.dict_size
 )
 

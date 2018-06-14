@@ -112,6 +112,11 @@ def encode_ngram(token, dict_size, sizes=None):
     return word_ngrams
 
 
+def encode_word(token, dict_size):
+    crc32_hash = zlib.crc32(token.encode()) % dict_size
+    return [crc32_hash]
+
+
 def encode_ngrams(tokens, dict_size):
     """
     Converts words into lists of trigram hashes
@@ -127,10 +132,19 @@ def encode_ngrams(tokens, dict_size):
     return words
 
 
-def encode_texts(texts, dict_size, tokenizer=None):
+def encode_words(tokens, dict_size):
+    words = []
+    for token in tokens:
+        code = encode_word(token, dict_size)
+        words.append(code)
+    return words
+
+
+def encode_texts(texts, dict_size, tokenizer=None, ngrams=True):
     """
     Encode batch of tests into encoded representation
 
+    :param ngrams: hash words or ngrmas
     :param texts:
     :param dict_size:
     :param tokenizer:
@@ -139,8 +153,13 @@ def encode_texts(texts, dict_size, tokenizer=None):
     if tokenizer is None:
         tokenizer = str.split
 
+    if ngrams:
+        encoder = encode_ngrams
+    else:
+        encoder = encode_words
+
     return list(map(
-        lambda x: encode_ngrams(x, dict_size),
+        lambda x: encoder(x, dict_size),
         map(
             tokenizer,
             texts

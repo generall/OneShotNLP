@@ -36,7 +36,8 @@ class MentionsLoader(DataLoader):
             read_size,
             batch_size,
             dict_size,
-            tokenizer
+            tokenizer,
+            ngrams_flag
     ):
         """
 
@@ -45,7 +46,9 @@ class MentionsLoader(DataLoader):
         :param batch_size: size of output batch
         :param dict_size: max number of features
         :param tokenizer: function to split text into tokens
+        :param ngrams_flag: use ngrams or words
         """
+        self.ngrams_flag = ngrams_flag
         self.tokenizer = tokenizer
         self.dict_size = dict_size
         self.batch_size = batch_size
@@ -90,7 +93,7 @@ class MentionsLoader(DataLoader):
         :param row:
         :return:
         """
-        return " ".join([row[1], self.mention_placeholder, row[3]])
+        return " ".join([row[1], self.mention_placeholder, row[3]]).strip()
 
     def random_batch_constructor(self, groups, size):
         """
@@ -131,19 +134,23 @@ class MentionsLoader(DataLoader):
 
         return sentences, sentences_other, match
 
+    def iter_pairs_batch(self):
+        for batch in self.read_batches():
+            yield self.random_batch_constructor(batch, self.batch_size)
+
     def __iter__(self):
         """
         Iterate over data.
 
         :return:
         """
-        for batch in self.read_batches():
-            sentences_a, sentences_b, match = self.random_batch_constructor(batch, self.batch_size)
-
+        for sentences_a, sentences_b, match in self.iter_pairs_batch():
             batch_a = Variable(
-                torch.from_numpy(pad_batch(encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer))))
+                torch.from_numpy(pad_batch(
+                    encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
             batch_b = Variable(
-                torch.from_numpy(pad_batch(encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer))))
+                torch.from_numpy(pad_batch(
+                    encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
             target = Variable(torch.FloatTensor(match))
 
             yield batch_a, batch_b, target
