@@ -40,6 +40,10 @@ parser.add_argument('--dict-size', type=int, default=50000)
 parser.add_argument('--cuda', type=bool, default=False)
 parser.add_argument('--ngram', type=bool, default=False)
 
+
+parser.add_argument('--parallel', type=int, default=2)
+
+
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
 
 args = parser.parse_args()
@@ -50,7 +54,8 @@ train_loader = MentionsLoader(
     batch_size=args.batch_size,
     dict_size=args.dict_size,
     tokenizer=tokenizer,
-    ngrams_flag=args.ngram
+    ngrams_flag=args.ngram,
+    parallel=args.parallel
 )
 
 test_loader = MentionsLoader(
@@ -59,7 +64,8 @@ test_loader = MentionsLoader(
     batch_size=args.batch_size,
     dict_size=args.dict_size,
     tokenizer=tokenizer,
-    ngrams_flag=args.ngram
+    ngrams_flag=args.ngram,
+    parallel=args.parallel
 )
 
 loss = TripletLoss()
@@ -75,7 +81,7 @@ model = Siames(
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
-optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 

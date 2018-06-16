@@ -11,7 +11,10 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from config import DATA_DIR
+from utils.helper import timeit
 from utils.text_tools import pad_batch, encode_texts
+
+from multiprocessing import Pool
 
 
 class MentionsLoader(DataLoader):
@@ -37,7 +40,8 @@ class MentionsLoader(DataLoader):
             batch_size,
             dict_size,
             tokenizer,
-            ngrams_flag
+            ngrams_flag,
+            parallel=1
     ):
         """
 
@@ -48,6 +52,7 @@ class MentionsLoader(DataLoader):
         :param tokenizer: function to split text into tokens
         :param ngrams_flag: use ngrams or words
         """
+        self.parallel = parallel
         self.ngrams_flag = ngrams_flag
         self.tokenizer = tokenizer
         self.dict_size = dict_size
@@ -95,12 +100,14 @@ class MentionsLoader(DataLoader):
         """
         return " ".join([row[1], self.mention_placeholder, row[3]]).strip()
 
-    def random_batch_constructor(self, groups, size):
+    def random_batch_constructor(self, groups, size=None):
         """
         This method generates random balanced triplets
 
         :return: ( [sentence], [sentence], [matches] )
         """
+
+        size = size or self.batch_size
 
         sentences = []
         sentences_other = []
@@ -138,22 +145,32 @@ class MentionsLoader(DataLoader):
         for batch in self.read_batches():
             yield self.random_batch_constructor(batch, self.batch_size)
 
+    def construct_rels(self, sentences_a, sentences_b, match):
+        batch_a = Variable(
+            torch.from_numpy(pad_batch(
+                encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
+        batch_b = Variable(
+            torch.from_numpy(pad_batch(
+                encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
+        target = Variable(torch.FloatTensor(match))
+
+        return batch_a, batch_b, target
+
+    def full_construct(self, batch):
+        return self.construct_rels(*self.random_batch_constructor(batch))
+
     def __iter__(self):
         """
         Iterate over data.
 
         :return:
         """
-        for sentences_a, sentences_b, match in self.iter_pairs_batch():
-            batch_a = Variable(
-                torch.from_numpy(pad_batch(
-                    encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
-            batch_b = Variable(
-                torch.from_numpy(pad_batch(
-                    encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
-            target = Variable(torch.FloatTensor(match))
-
-            yield batch_a, batch_b, target
+        if self.parallel > 1:
+            with Pool(self.parallel) as pool:
+                yield from pool.imap(self.full_construct, self.read_batches())
+        else:
+            for batch in self.read_batches():
+                yield self.full_construct(batch)
 
     def __len__(self):
         fd = self.get_file_iterator(self.filename)
