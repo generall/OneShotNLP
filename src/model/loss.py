@@ -15,7 +15,7 @@ def naive_loss(distances, target):
 
 class TripletLoss:
 
-    def __init__(self, alpha=0.4):
+    def __init__(self, alpha=0.8):
         self.alpha = alpha
 
     def __call__(self, distances, target):

@@ -146,13 +146,11 @@ class MentionsLoader(DataLoader):
             yield self.random_batch_constructor(batch, self.batch_size)
 
     def construct_rels(self, sentences_a, sentences_b, match):
-        batch_a = Variable(
-            torch.from_numpy(pad_batch(
-                encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
-        batch_b = Variable(
-            torch.from_numpy(pad_batch(
-                encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag))))
-        target = Variable(torch.FloatTensor(match))
+        batch_a = torch.from_numpy(pad_batch(
+                encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
+        batch_b = torch.from_numpy(pad_batch(
+                encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
+        target = torch.FloatTensor(match)
 
         return batch_a, batch_b, target
 
