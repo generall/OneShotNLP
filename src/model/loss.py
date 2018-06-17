@@ -90,8 +90,8 @@ class AccuracyMetric(Metric):
         :return:
         """
 
-        y_pred = y_pred.numpy()
-        y_true = y_true.numpy()
+        y_pred = y_pred.cpu().numpy()
+        y_true = y_true.cpu().numpy()
         return accuracy_score(y_pred.argmax(axis=1), y_true)
 
 
