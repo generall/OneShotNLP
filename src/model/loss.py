@@ -1,4 +1,5 @@
 import torch
+from sklearn.metrics import accuracy_score
 from torchlite.torch.metrics import Metric
 
 
@@ -74,3 +75,32 @@ class DistAccuracy(Metric):
         positive = torch.sum((y_pred * y_true >= 0).int()).data.item()
         total = y_true.shape[0]
         return positive / total
+
+
+class AccuracyMetric(Metric):
+    @property
+    def get_name(self):
+        return "accuracy"
+
+    def __call__(self, y_pred, y_true):
+        """
+
+        :param y_pred:
+        :param y_true:
+        :return:
+        """
+
+        y_pred = y_pred.numpy()
+        y_true = y_true.numpy()
+        return accuracy_score(y_pred.argmax(axis=1), y_true)
+
+
+class CrossEntropyLoss:
+    def __init__(self):
+        self.loss = torch.nn.NLLLoss()
+
+    def __call__(self, prediction, target):
+        prediction = prediction.clamp(min=1e-8)
+        prediction = torch.log(prediction)
+
+        return self.loss(prediction, target)

@@ -13,7 +13,7 @@ from torchlite.torch.learner.cores import ClassifierCore
 from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback
 
 from config import TB_DIR, MODELS_DIR
-from model.loss import DistAccuracy, naive_loss, TripletLoss, TripletAccuracy
+from model.loss import DistAccuracy, naive_loss, TripletLoss, TripletAccuracy, AccuracyMetric, CrossEntropyLoss
 from model.siames import Siames
 from utils.loader import MentionsLoader
 from utils.loggers import ModelParamsLogger
@@ -41,7 +41,7 @@ parser.add_argument('--cuda', type=bool, default=False)
 parser.add_argument('--ngram', type=bool, default=False)
 
 
-parser.add_argument('--parallel', type=int, default=2)
+parser.add_argument('--parallel', type=int, default=1)
 
 
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
@@ -68,7 +68,7 @@ test_loader = MentionsLoader(
     parallel=args.parallel
 )
 
-loss = TripletLoss()
+loss = CrossEntropyLoss()
 
 model = Siames(
     debug=True,
@@ -90,9 +90,9 @@ if not os.path.exists(tb_dir):
     os.mkdir(tb_dir)
 
 metrics = [
-    TripletAccuracy(),
-    DistAccuracy()
+    AccuracyMetric(),
 ]
+
 callbacks = [
     ModelParamsLogger(),
     TensorboardVisualizerCallback(tb_dir),

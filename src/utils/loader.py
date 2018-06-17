@@ -131,11 +131,11 @@ class MentionsLoader(DataLoader):
 
             sentences.append(self.row_to_example(base))
             sentences_other.append(self.row_to_example(positive))
-            match.append(1.0)  # positive pair cosine
+            match.append(1)  # positive pair cosine
 
             sentences.append(self.row_to_example(base))
             sentences_other.append(self.row_to_example(negative))
-            match.append(-1.0)  # negative pair cosine
+            match.append(0)  # negative pair cosine
 
             n += 1
 
@@ -150,7 +150,7 @@ class MentionsLoader(DataLoader):
                 encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
         batch_b = torch.from_numpy(pad_batch(
                 encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
-        target = torch.FloatTensor(match)
+        target = torch.LongTensor(match)
 
         return batch_a, batch_b, target
 
