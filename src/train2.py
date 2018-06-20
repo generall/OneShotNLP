@@ -78,9 +78,9 @@ loss = CrossEntropyLoss()
 
 model = Siames(
     debug=True,
-    word_emb_sizes=[20],
-    conv_sizes=[32],
-    out_size=[20],
+    word_emb_sizes=[50],
+    conv_sizes=[64],
+    out_size=[50],
     embedding_size=args.dict_size
 )
 
