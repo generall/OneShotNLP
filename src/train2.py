@@ -10,7 +10,7 @@ import nltk
 import torch.optim as optim
 from torchlite.torch.learner import Learner
 from torchlite.torch.learner.cores import ClassifierCore
-from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback
+from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback, ReduceLROnPlateau
 
 from config import TB_DIR, MODELS_DIR
 from model.loss import DistAccuracy, naive_loss, TripletLoss, TripletAccuracy, AccuracyMetric, CrossEntropyLoss
@@ -40,9 +40,7 @@ parser.add_argument('--dict-size', type=int, default=50000)
 parser.add_argument('--cuda', type=bool, default=False)
 parser.add_argument('--ngram', type=bool, default=False)
 
-
-parser.add_argument('--parallel', type=int, default=1)
-
+parser.add_argument('--parallel', type=int, default=0)
 
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
 
@@ -70,18 +68,26 @@ test_loader = MentionsLoader(
 
 loss = CrossEntropyLoss()
 
+# model = Siames(
+#     debug=True,
+#     word_emb_sizes=[50],
+#     conv_sizes=[64],
+#     out_size=[50],
+#     embedding_size=args.dict_size
+# )
+
 model = Siames(
     debug=True,
-    word_emb_sizes=[50],
-    conv_sizes=[64],
-    out_size=[50],
+    word_emb_sizes=[20],
+    conv_sizes=[32],
+    out_size=[20],
     embedding_size=args.dict_size
 )
 
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
-optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-1, weight_decay=1e-4)
 
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 
@@ -93,10 +99,24 @@ metrics = [
     AccuracyMetric(),
 ]
 
+
+class MyReduceLROnPlateau(ReduceLROnPlateau):
+    def on_epoch_end(self, epoch, logs=None):
+        step = logs["step"]
+        if step == 'validation':
+            batch_logs = logs.get('batch_logs', {})
+            epoch_loss = batch_logs.get('loss')
+            if epoch_loss is not None:
+                print('reduce lr num_bad_epochs: ', self.lr_sch.num_bad_epochs)
+                self.lr_sch.step(epoch_loss, epoch)
+
+
+
 callbacks = [
     ModelParamsLogger(),
     TensorboardVisualizerCallback(tb_dir),
-    ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=args.save_every)
+    ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=args.save_every),
+    MyReduceLROnPlateau(optimizer, loss_step="valid", factor=0.5, verbose=True, patience=3)
 ]
 
 learner = Learner(ClassifierCore(model, optimizer, loss), use_cuda=args.cuda)

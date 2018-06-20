@@ -41,7 +41,7 @@ class MentionsLoader(DataLoader):
             dict_size,
             tokenizer,
             ngrams_flag,
-            parallel=1
+            parallel=0
     ):
         """
 
@@ -163,7 +163,7 @@ class MentionsLoader(DataLoader):
 
         :return:
         """
-        if self.parallel > 1:
+        if self.parallel > 0:
             with Pool(self.parallel) as pool:
                 yield from pool.imap(self.full_construct, self.read_batches())
         else:
@@ -177,7 +177,7 @@ class MentionsLoader(DataLoader):
 
 
 if __name__ == '__main__':
-    loader = MentionsLoader(MentionsLoader.test_data)
+    loader = MentionsLoader(filename = MentionsLoader.test_data, read_size=10, batch_size=200, dict_size=100, tokenizer=None, ngrams_flag=1 )
 
     batch1 = next(loader.read_batches())
 
