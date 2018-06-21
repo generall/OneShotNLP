@@ -116,7 +116,7 @@ callbacks = [
     ModelParamsLogger(),
     TensorboardVisualizerCallback(tb_dir),
     ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=args.save_every),
-    MyReduceLROnPlateau(optimizer, loss_step="valid", factor=0.5, verbose=True, patience=3)
+    MyReduceLROnPlateau(optimizer, loss_step="valid", factor=0.5, verbose=True, patience=10)
 ]
 
 learner = Learner(ClassifierCore(model, optimizer, loss), use_cuda=args.cuda)
