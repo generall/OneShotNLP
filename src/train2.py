@@ -87,7 +87,7 @@ model = Siames(
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
-optimizer = optim.Adam(model.parameters(), lr=1e-1, weight_decay=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-4)
 
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 
