@@ -100,6 +100,17 @@ class CDSSM(nn.Module):
 
         self.feed_forward = nn.Sequential(*feed_forward)
 
+    def weight_init(self):
+
+        def init_weights(m):
+            if isinstance(m, (nn.Linear, nn.Conv1d)):
+                nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('tanh'))
+                # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
+
+        self.input_to_vect.apply(init_weights)
+        self.convolution.apply(init_weights)
+        self.feed_forward.apply(init_weights)
+
     def process_sentences(self, sentences):
         """
         :param sentences Tensor (batch_size, sentence_length, word_depth)

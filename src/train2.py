@@ -84,6 +84,8 @@ model = Siames(
     embedding_size=args.dict_size
 )
 
+model.weight_init()
+
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
@@ -109,7 +111,6 @@ class MyReduceLROnPlateau(ReduceLROnPlateau):
             if epoch_loss is not None:
                 print('reduce lr num_bad_epochs: ', self.lr_sch.num_bad_epochs)
                 self.lr_sch.step(epoch_loss, epoch)
-
 
 
 callbacks = [
