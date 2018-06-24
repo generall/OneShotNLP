@@ -30,7 +30,7 @@ class Siames(nn.Module):
         if self.debug:
             self.params = {
                 'max_value': torch.max(vectors_a).item(),
-                'avg_value': torch.mean(vectors_a[vectors_a > 0.001]).item(),
+                'avg_value': torch.mean(vectors_a).item(),
             }
 
         return out
