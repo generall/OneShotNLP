@@ -88,7 +88,7 @@ model = Siames(
     embedding_size=args.dict_size
 )
 
-model.weight_init(torch.nn.init.uniform_)
+#model.weight_init(torch.nn.init.uniform_)
 
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
