@@ -44,6 +44,8 @@ parser.add_argument('--ngram', type=bool, default=False)
 
 parser.add_argument('--parallel', type=int, default=0)
 
+parser.add_argument('--patience', type=int, default=10)
+
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
 
 args = parser.parse_args()
@@ -86,7 +88,7 @@ model = Siames(
     embedding_size=args.dict_size
 )
 
-model.weight_init(torch.nn.init.normal_)
+model.weight_init(torch.nn.init.uniform_)
 
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
@@ -119,7 +121,7 @@ callbacks = [
     ModelParamsLogger(),
     TensorboardVisualizerCallback(tb_dir),
     ModelSaverCallback(MODELS_DIR, epochs=args.epoch, every_n_epoch=args.save_every),
-    MyReduceLROnPlateau(optimizer, loss_step="valid", factor=0.5, verbose=True, patience=10)
+    MyReduceLROnPlateau(optimizer, loss_step="valid", factor=0.5, verbose=True, patience=args.patience)
 ]
 
 learner = Learner(ClassifierCore(model, optimizer, loss), use_cuda=args.cuda)
