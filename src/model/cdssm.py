@@ -100,11 +100,11 @@ class CDSSM(nn.Module):
 
         self.feed_forward = nn.Sequential(*feed_forward)
 
-    def weight_init(self):
+    def weight_init(self, init_foo):
 
         def init_weights(m):
             if isinstance(m, (nn.Linear, nn.Conv1d)):
-                nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('tanh'))
+                init_foo(m.weight)
                 # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
 
         self.input_to_vect.apply(init_weights)

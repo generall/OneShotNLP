@@ -6,6 +6,8 @@ import datetime
 
 import os
 
+import torch
+
 import nltk
 import torch.optim as optim
 from torchlite.torch.learner import Learner
@@ -84,7 +86,7 @@ model = Siames(
     embedding_size=args.dict_size
 )
 
-model.weight_init()
+model.weight_init(torch.nn.init.normal_)
 
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))

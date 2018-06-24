@@ -16,10 +16,10 @@ class Siames(nn.Module):
         self.combination_layer = nn.Linear(self.out_size[-1], 2)
         self.sm = nn.Softmax(dim=1)
 
-    def weight_init(self):
-        nn.init.xavier_uniform_(self.combination_layer.weight)
+    def weight_init(self, init_foo):
+        init_foo(self.combination_layer.weight)
         # nn.init.xavier_uniform_(self.combination_layer.bias)
-        self.cdssm.weight_init()
+        self.cdssm.weight_init(init_foo)
 
     def forward(self, batch_a, batch_b):
         vectors_a = self.cdssm.process_sentences(batch_a)
