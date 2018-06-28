@@ -48,6 +48,8 @@ parser.add_argument('--patience', type=int, default=10)
 
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
 
+parser.add_argument('--lr', type=float, default=1e-2)
+
 args = parser.parse_args()
 
 train_loader = MentionsLoader(
@@ -82,9 +84,9 @@ loss = CrossEntropyLoss()
 
 model = Siames(
     debug=True,
-    word_emb_sizes=[100],
-    conv_sizes=[128],
-    out_size=[100],
+    word_emb_sizes=[200],
+    conv_sizes=[256],
+    out_size=[200],
     embedding_size=args.dict_size
 )
 
@@ -93,7 +95,7 @@ model = Siames(
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
-optimizer = optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=args.lr) #, weight_decay=1e-4)
 
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 
