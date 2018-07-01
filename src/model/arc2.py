@@ -44,6 +44,15 @@ class MatchMatrix(nn.Module):
 
         return self.interaction(matrix)
 
+    def weight_init(self, init_foo):
+
+        def init_weights(m):
+            if isinstance(m, (nn.Linear, nn.Conv2d)):
+                init_foo(m.weight)
+                # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
+
+        self.interaction.apply(init_weights)
+
 
 class ARC2(nn.Module):
 
@@ -105,6 +114,19 @@ class ARC2(nn.Module):
         feed_forward.append(nn.Softmax(dim=1))
 
         self.feed_forward = nn.Sequential(*feed_forward)
+
+    def weight_init(self, init_foo):
+
+        self.match_layer.weight_init(init_foo)
+
+        def init_weights(m):
+            if isinstance(m, (nn.Linear, nn.Conv2d)):
+                init_foo(m.weight)
+                # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
+
+        self.input_to_vect.apply(init_weights)
+        self.convolution.apply(init_weights)
+        self.feed_forward.apply(init_weights)
 
     def forward(self, sent_a, sent_b):
 

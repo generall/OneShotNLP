@@ -88,13 +88,16 @@ loss = CrossEntropyLoss()
 # )
 
 model = ARC2(
-    word_emb_sizes=[args.netsize],
-    matrix_depth=[args.netsize],
-    conv_depth=[args.netsize],
-    out_size=[int(args.netsize * 0.5)],
+    word_emb_sizes=[50],
+    matrix_depth=[10],
+    conv_depth=[10],
+    out_size=[10],
     embedding_size=args.dict_size,
-    window=3
+    window=2
 )
+
+
+model.weight_init(torch.nn.init.xavier_normal_)
 
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
