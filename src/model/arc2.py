@@ -35,7 +35,7 @@ class MatchMatrix(nn.Module):
 
     def forward(self, sent_a, sent_b):
         a_size = sent_a.shape[1]
-        b_size = sent_a.shape[1]
+        b_size = sent_b.shape[1]
 
         a = torch.stack([sent_a] * b_size, dim=2)
         b = torch.stack([sent_b] * a_size, dim=1)
