@@ -50,6 +50,13 @@ parser.add_argument('--run', default='none', help='name of current run for tenso
 
 parser.add_argument('--lr', type=float, default=1e-2)
 
+parser.add_argument('--weight_decay', type=float, default=0)
+
+parser.add_argument('--netsize', type=int, default=10)
+
+parser.add_argument()
+
+
 args = parser.parse_args()
 
 train_loader = MentionsLoader(
@@ -84,18 +91,17 @@ loss = CrossEntropyLoss()
 
 model = Siames(
     debug=True,
-    word_emb_sizes=[200],
-    conv_sizes=[256],
-    out_size=[200],
+    word_emb_sizes=[args.netsize],
+    conv_sizes=[int(args.netsize * 1.5)],
+    out_size=[args.netsize],
     embedding_size=args.dict_size
 )
 
-#model.weight_init(torch.nn.init.uniform_)
 
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
-optimizer = optim.Adam(model.parameters(), lr=args.lr) #, weight_decay=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 
