@@ -54,8 +54,6 @@ parser.add_argument('--weight_decay', type=float, default=0)
 
 parser.add_argument('--netsize', type=int, default=10)
 
-parser.add_argument()
-
 
 args = parser.parse_args()
 
