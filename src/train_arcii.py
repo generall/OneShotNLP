@@ -54,6 +54,8 @@ parser.add_argument('--weight_decay', type=float, default=0)
 
 parser.add_argument('--netsize', type=int, default=10)
 
+parser.add_argument('--emb-size', type=int, default=50)
+
 
 args = parser.parse_args()
 
@@ -88,10 +90,10 @@ loss = CrossEntropyLoss()
 # )
 
 model = ARC2(
-    word_emb_sizes=[50],
-    matrix_depth=[10],
-    conv_depth=[10],
-    out_size=[10],
+    word_emb_sizes=[args.emb_size],
+    matrix_depth=[args.netsize],
+    conv_depth=[args.netsize],
+    out_size=[args.netsize],
     embedding_size=args.dict_size,
     window=2
 )
