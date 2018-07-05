@@ -74,9 +74,9 @@ class ARC2(nn.Module):
         self.word_emb_sizes = word_emb_sizes
         activation = nn.Tanh
 
-        sparse_linear = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
+        self.embedding = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
 
-        input_to_word_vect = [sparse_linear]
+        input_to_word_vect = [self.embedding]
 
         for from_size, to_size in pairwise(self.word_emb_sizes):
             input_to_word_vect += [
@@ -144,7 +144,6 @@ class ARC2(nn.Module):
         max_pooling = F.max_pool2d(conv_matrix, kernel_size=(h, w)).view(-1, self.conv_depth[-1])
 
         res = self.feed_forward(max_pooling)
-
 
         return res
 

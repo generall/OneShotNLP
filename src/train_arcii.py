@@ -5,6 +5,7 @@ import argparse
 import datetime
 
 import os
+import random
 
 import torch
 
@@ -24,6 +25,9 @@ from utils.loggers import ModelParamsLogger
 def tokenizer(text, alpha_only=True):  # create a tokenizer function
     return [tok for tok in nltk.word_tokenize(text) if (not alpha_only or tok.isalpha())]
 
+
+random.seed(42)
+torch.manual_seed(42)
 
 parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
 
@@ -55,7 +59,6 @@ parser.add_argument('--weight_decay', type=float, default=0)
 parser.add_argument('--netsize', type=int, default=10)
 
 parser.add_argument('--emb-size', type=int, default=50)
-
 
 args = parser.parse_args()
 
@@ -98,8 +101,8 @@ model = ARC2(
     window=2
 )
 
-
-model.weight_init(torch.nn.init.xavier_normal_)
+gain = torch.nn.init.calculate_gain('tanh')
+model.weight_init(lambda x: torch.nn.init.xavier_normal_(x, gain=gain))
 
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
