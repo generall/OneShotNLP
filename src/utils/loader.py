@@ -41,7 +41,8 @@ class MentionsLoader(DataLoader):
             dict_size,
             tokenizer,
             ngrams_flag,
-            parallel=0
+            parallel=0,
+            cycles=1
     ):
         """
 
@@ -51,7 +52,9 @@ class MentionsLoader(DataLoader):
         :param dict_size: max number of features
         :param tokenizer: function to split text into tokens
         :param ngrams_flag: use ngrams or words
+        :param cycles: number of full iterations per epoch
         """
+        self.cycles = cycles
         self.parallel = parallel
         self.ngrams_flag = ngrams_flag
         self.tokenizer = tokenizer
@@ -163,17 +166,18 @@ class MentionsLoader(DataLoader):
 
         :return:
         """
-        if self.parallel > 0:
-            with Pool(self.parallel) as pool:
-                yield from pool.imap(self.full_construct, self.read_batches())
-        else:
-            for batch in self.read_batches():
-                yield self.full_construct(batch)
+        for i in range(self.cycles):
+            if self.parallel > 0:
+                with Pool(self.parallel) as pool:
+                    yield from pool.imap(self.full_construct, self.read_batches())
+            else:
+                for batch in self.read_batches():
+                    yield self.full_construct(batch)
 
     def __len__(self):
         fd = self.get_file_iterator(self.filename)
         num_lines = sum(1 for _ in fd)
-        return int(num_lines / self.read_size)
+        return int(num_lines / self.read_size) * self.cycles
 
 
 if __name__ == '__main__':

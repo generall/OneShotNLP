@@ -26,8 +26,6 @@ def tokenizer(text, alpha_only=True):  # create a tokenizer function
     return [tok for tok in nltk.word_tokenize(text) if (not alpha_only or tok.isalpha())]
 
 
-random.seed(42)
-torch.manual_seed(42)
 
 parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
 
@@ -60,7 +58,15 @@ parser.add_argument('--netsize', type=int, default=10)
 
 parser.add_argument('--emb-size', type=int, default=50)
 
+
+parser.add_argument('--seed', type=int, default=42)
+parser.add_argument('--torch-seed', type=int, default=42)
+
+
 args = parser.parse_args()
+
+random.seed(args.seed)
+torch.manual_seed(args.torch_seed)
 
 train_loader = MentionsLoader(
     args.train_data,
