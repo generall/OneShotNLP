@@ -26,7 +26,6 @@ def tokenizer(text, alpha_only=True):  # create a tokenizer function
     return [tok for tok in nltk.word_tokenize(text) if (not alpha_only or tok.isalpha())]
 
 
-
 parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
 
 parser.add_argument('--train-data', dest='train_data', help='path to train data', default=MentionsLoader.debug_train)
@@ -58,10 +57,10 @@ parser.add_argument('--netsize', type=int, default=10)
 
 parser.add_argument('--emb-size', type=int, default=50)
 
-
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--torch-seed', type=int, default=42)
 
+parser.add_argument('--cycles', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -75,7 +74,8 @@ train_loader = MentionsLoader(
     dict_size=args.dict_size,
     tokenizer=tokenizer,
     ngrams_flag=args.ngram,
-    parallel=args.parallel
+    parallel=args.parallel,
+    cycles=args.cycles,
 )
 
 test_loader = MentionsLoader(
@@ -85,7 +85,8 @@ test_loader = MentionsLoader(
     dict_size=args.dict_size,
     tokenizer=tokenizer,
     ngrams_flag=args.ngram,
-    parallel=args.parallel
+    parallel=args.parallel,
+    cycles=args.cycles,
 )
 
 loss = CrossEntropyLoss()

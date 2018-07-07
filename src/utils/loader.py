@@ -16,6 +16,8 @@ from utils.text_tools import pad_batch, encode_texts
 
 from multiprocessing import Pool
 
+import _pickle as cPickle
+
 
 class MentionsLoader(DataLoader):
     """
@@ -42,7 +44,9 @@ class MentionsLoader(DataLoader):
             tokenizer,
             ngrams_flag,
             parallel=0,
-            cycles=1
+            cycles=1,
+            allow_cache_mem_mb=1,
+            force=False
     ):
         """
 
@@ -54,6 +58,7 @@ class MentionsLoader(DataLoader):
         :param ngrams_flag: use ngrams or words
         :param cycles: number of full iterations per epoch
         """
+        self.allow_cache_mem_mb = allow_cache_mem_mb
         self.cycles = cycles
         self.parallel = parallel
         self.ngrams_flag = ngrams_flag
@@ -63,6 +68,21 @@ class MentionsLoader(DataLoader):
         self.read_size = read_size
         self.filename = filename
         self.mention_placeholder = "XXXXX"
+
+        self.cached = False
+        self.stream = False
+
+        if not force:
+            self.data = []
+            if os.path.exists(self.filename + ".pkl"):
+                self.cached = True
+                size = os.path.getsize(self.filename + ".pkl") / 1024 / 1024  # In Mb
+                if size > self.allow_cache_mem_mb:
+                    self.stream = True
+                    print("Streaming cahce from ", self.filename + ".pkl")
+                else:
+                    print("Loading cahce from ", self.filename + "pkl")
+                    self.data = list(self.read_cache(self.filename + ".pkl"))
 
     @classmethod
     def get_file_iterator(cls, filename):
@@ -132,12 +152,21 @@ class MentionsLoader(DataLoader):
 
             negative = random.choice(groups[negative_group])
 
-            sentences.append(self.row_to_example(base))
-            sentences_other.append(self.row_to_example(positive))
-            match.append(1)  # positive pair cosine
+            if random.random() > 0.5:
+                sentences.append(self.row_to_example(base))
+                sentences_other.append(self.row_to_example(positive))
+            else:
+                sentences.append(self.row_to_example(positive))
+                sentences_other.append(self.row_to_example(base))
 
-            sentences.append(self.row_to_example(base))
-            sentences_other.append(self.row_to_example(negative))
+            if random.random() > 0.5:
+                sentences.append(self.row_to_example(base))
+                sentences_other.append(self.row_to_example(negative))
+            else:
+                sentences.append(self.row_to_example(negative))
+                sentences_other.append(self.row_to_example(base))
+
+            match.append(1)  # positive pair cosine
             match.append(0)  # negative pair cosine
 
             n += 1
@@ -166,18 +195,38 @@ class MentionsLoader(DataLoader):
 
         :return:
         """
-        for i in range(self.cycles):
-            if self.parallel > 0:
-                with Pool(self.parallel) as pool:
-                    yield from pool.imap(self.full_construct, self.read_batches())
+        if self.cached:
+            if self.stream:
+                yield from self.read_cache(self.filename + '.pkl')
             else:
-                for batch in self.read_batches():
-                    yield self.full_construct(batch)
+                yield from self.data
+        else:
+            for i in range(self.cycles):
+                if self.parallel > 0:
+                    with Pool(self.parallel) as pool:
+                        yield from pool.imap(self.full_construct, self.read_batches())
+                else:
+                    for batch in self.read_batches():
+                        yield self.full_construct(batch)
 
     def __len__(self):
         fd = self.get_file_iterator(self.filename)
         num_lines = sum(1 for _ in fd)
         return int(num_lines / self.read_size) * self.cycles
+
+    def cache_pickle(self, filename):
+        with open(filename, 'wb') as fd:
+            for batch in self:
+                cPickle.dump(batch, fd)
+
+    @classmethod
+    def read_cache(cls, filename):
+        with open(filename, 'rb') as fd:
+            while True:
+                try:
+                    yield cPickle.load(fd)
+                except Exception as e:
+                    break
 
 
 if __name__ == '__main__':
