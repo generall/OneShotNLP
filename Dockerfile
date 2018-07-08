@@ -5,3 +5,4 @@ WORKDIR /
 COPY . /
 
 RUN bash -x install.sh
+
