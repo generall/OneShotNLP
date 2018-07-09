@@ -16,7 +16,7 @@ class MatchMatrix(nn.Module):
             matrix_depth
     ):
         super(MatchMatrix, self).__init__()
-        activation = nn.Tanh
+        activation = nn.ReLU
 
         self.matrix_depth = matrix_depth
 
@@ -63,16 +63,18 @@ class ARC2(nn.Module):
             conv_depth,
             out_size,
             embedding_size,
-            window
+            window,
+            sent_conv_size=None
     ):
         super(ARC2, self).__init__()
+        self.sent_conv_size = sent_conv_size
         self.window = window
         self.embedding_size = embedding_size
         self.out_size = out_size
         self.conv_depth = conv_depth
         self.matrix_depth = matrix_depth
         self.word_emb_sizes = word_emb_sizes
-        activation = nn.Tanh
+        activation = nn.ReLU
 
         self.embedding = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
 
@@ -86,7 +88,15 @@ class ARC2(nn.Module):
 
         self.input_to_vect = nn.Sequential(*input_to_word_vect)
 
-        self.match_layer = MatchMatrix(self.word_emb_sizes[-1], self.matrix_depth)
+        if self.sent_conv_size and len(self.sent_conv_size) > 0:
+            self.sent_conv = nn.Sequential(*[
+                torch.nn.Conv1d(self.word_emb_sizes[-1], self.sent_conv_size[0], self.window),
+                activation()
+            ])
+            self.match_layer = MatchMatrix(self.sent_conv_size[-1], self.matrix_depth)
+        else:
+            self.sent_conv = None
+            self.match_layer = MatchMatrix(self.word_emb_sizes[-1], self.matrix_depth)
 
         convolutions = [
             torch.nn.Conv2d(self.matrix_depth[-1], self.conv_depth[0], self.window),
@@ -132,6 +142,12 @@ class ARC2(nn.Module):
 
         sent_embedding_a = self.input_to_vect(sent_a)
         sent_embedding_b = self.input_to_vect(sent_b)
+
+        if self.sent_conv:
+            sent_embedding_a = sent_embedding_a.transpose(1, 2)
+            sent_embedding_b = sent_embedding_b.transpose(1, 2)
+            sent_embedding_a = self.sent_conv(sent_embedding_a).transpose(2, 1)
+            sent_embedding_b = self.sent_conv(sent_embedding_b).transpose(2, 1)
 
         match_matrix = self.match_layer(sent_embedding_a, sent_embedding_b)
 

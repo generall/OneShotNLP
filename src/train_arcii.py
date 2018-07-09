@@ -101,6 +101,7 @@ loss = CrossEntropyLoss()
 
 model = ARC2(
     word_emb_sizes=[args.emb_size],
+    sent_conv_size=None,
     matrix_depth=[args.netsize],
     conv_depth=[args.netsize],
     out_size=[args.netsize],
@@ -108,7 +109,7 @@ model = ARC2(
     window=2
 )
 
-gain = torch.nn.init.calculate_gain('tanh')
+gain = torch.nn.init.calculate_gain('relu')
 model.weight_init(lambda x: torch.nn.init.xavier_normal_(x, gain=gain))
 
 if args.restore_model:
