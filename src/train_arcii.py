@@ -62,6 +62,9 @@ parser.add_argument('--torch-seed', type=int, default=42)
 
 parser.add_argument('--cycles', type=int, default=1)
 
+parser.add_argument('--dropout', type=float, default=0.0)
+
+
 args = parser.parse_args()
 
 random.seed(args.seed)
@@ -106,7 +109,8 @@ model = ARC2(
     conv_depth=[args.netsize],
     out_size=[args.netsize],
     embedding_size=args.dict_size,
-    window=2
+    window=2,
+    dropout=args.dropout
 )
 
 gain = torch.nn.init.calculate_gain('relu')

@@ -64,9 +64,11 @@ class ARC2(nn.Module):
             out_size,
             embedding_size,
             window,
-            sent_conv_size=None
+            sent_conv_size=None,
+            dropout=0.1
     ):
         super(ARC2, self).__init__()
+        self.dropout = dropout
         self.sent_conv_size = sent_conv_size
         self.window = window
         self.embedding_size = embedding_size
@@ -83,15 +85,19 @@ class ARC2(nn.Module):
         for from_size, to_size in pairwise(self.word_emb_sizes):
             input_to_word_vect += [
                 nn.Linear(from_size, to_size),
-                activation()
+                activation(),
+                nn.Dropout(self.dropout),
             ]
+
+        input_to_word_vect.append(nn.Dropout(self.dropout))
 
         self.input_to_vect = nn.Sequential(*input_to_word_vect)
 
         if self.sent_conv_size and len(self.sent_conv_size) > 0:
             self.sent_conv = nn.Sequential(*[
                 torch.nn.Conv1d(self.word_emb_sizes[-1], self.sent_conv_size[0], self.window),
-                activation()
+                activation(),
+                nn.Dropout(self.dropout),
             ])
             self.match_layer = MatchMatrix(self.sent_conv_size[-1], self.matrix_depth)
         else:
@@ -100,13 +106,15 @@ class ARC2(nn.Module):
 
         convolutions = [
             torch.nn.Conv2d(self.matrix_depth[-1], self.conv_depth[0], self.window),
-            activation()
+            activation(),
+            nn.Dropout(self.dropout)
         ]
 
         for from_size, to_size in pairwise(self.conv_depth):
             convolutions += [
                 torch.nn.Conv2d(from_size, to_size, self.window),
-                activation()
+                activation(),
+                nn.Dropout(self.dropout),
             ]
 
         self.convolution = nn.Sequential(*convolutions)
@@ -118,6 +126,7 @@ class ARC2(nn.Module):
         for from_size, to_size in pairwise(self.out_size):
             feed_forward += [
                 activation(),
+                nn.Dropout(self.dropout),
                 torch.nn.Linear(from_size, to_size)
             ]
 
