@@ -104,7 +104,7 @@ loss = CrossEntropyLoss()
 
 model = ARC2(
     word_emb_sizes=[args.emb_size],
-    sent_conv_size=None,
+    sent_conv_size=[args.emb_size],
     matrix_depth=[args.netsize],
     conv_depth=[args.netsize],
     out_size=[args.netsize],
