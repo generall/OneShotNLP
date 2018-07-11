@@ -7,11 +7,9 @@ from collections import defaultdict
 from zipfile import ZipFile
 
 import torch
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from config import DATA_DIR
-from utils.helper import timeit
 from utils.text_tools import pad_batch, encode_texts
 
 from multiprocessing import Pool

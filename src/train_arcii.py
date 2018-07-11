@@ -64,6 +64,8 @@ parser.add_argument('--cycles', type=int, default=1)
 
 parser.add_argument('--dropout', type=float, default=0.0)
 
+parser.add_argument('--preconv', type=bool, default=False, help="Use conv1d layer before interaction matrix")
+
 
 args = parser.parse_args()
 
@@ -102,9 +104,11 @@ loss = CrossEntropyLoss()
 #     embedding_size=args.dict_size
 # )
 
+preconv = [args.emb_size] if args.preconv else None
+
 model = ARC2(
     word_emb_sizes=[args.emb_size],
-    sent_conv_size=[args.emb_size],
+    sent_conv_size=preconv,
     matrix_depth=[args.netsize],
     conv_depth=[args.netsize],
     out_size=[args.netsize],
@@ -113,7 +117,7 @@ model = ARC2(
     dropout=args.dropout
 )
 
-gain = torch.nn.init.calculate_gain('relu')
+gain = torch.nn.init.calculate_gain('leaky_relu')
 model.weight_init(lambda x: torch.nn.init.xavier_normal_(x, gain=gain))
 
 if args.restore_model:

@@ -16,7 +16,7 @@ class MatchMatrix(nn.Module):
             matrix_depth
     ):
         super(MatchMatrix, self).__init__()
-        activation = nn.ReLU
+        activation = nn.LeakyReLU
 
         self.matrix_depth = matrix_depth
 
@@ -76,7 +76,7 @@ class ARC2(nn.Module):
         self.conv_depth = conv_depth
         self.matrix_depth = matrix_depth
         self.word_emb_sizes = word_emb_sizes
-        activation = nn.ReLU
+        activation = nn.LeakyReLU
 
         self.embedding = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
 
