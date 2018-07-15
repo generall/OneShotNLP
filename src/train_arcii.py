@@ -105,6 +105,7 @@ preconv = PreConv(
     word_emb_sizes=[args.emb_size],
     sent_conv_size=preconv_size,
     dropout=args.dropout,
+    window=2
 )
 
 model = ARC2(

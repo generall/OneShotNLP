@@ -125,10 +125,12 @@ class PreConv(nn.Module):
             self,
             word_emb_sizes,
             sent_conv_size,
-            dropout
+            dropout,
+            window
     ):
         super(PreConv, self).__init__()
 
+        self.window = window
         self.dropout = dropout
         self.sent_conv_size = sent_conv_size
         self.word_emb_sizes = word_emb_sizes
