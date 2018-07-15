@@ -16,9 +16,9 @@ from torchlite.torch.learner.cores import ClassifierCore
 from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback, ReduceLROnPlateau
 
 from config import TB_DIR, MODELS_DIR
-from model.arc2 import ARC2
+from model.arc2 import ARC2, PreConv, SumVectorizer, EmbeddingVectorizer, FastTextEmbeddingBag
 from model.loss import AccuracyMetric, CrossEntropyLoss
-from utils.loader import MentionsLoader
+from utils.loader import MentionsLoader, WordMentionLoader
 from utils.loggers import ModelParamsLogger
 
 
@@ -66,13 +66,14 @@ parser.add_argument('--dropout', type=float, default=0.0)
 
 parser.add_argument('--preconv', type=bool, default=False, help="Use conv1d layer before interaction matrix")
 
+parser.add_argument('--emb-path', type=str, default=None)
 
 args = parser.parse_args()
 
 random.seed(args.seed)
 torch.manual_seed(args.torch_seed)
 
-train_loader = MentionsLoader(
+train_loader = WordMentionLoader(
     args.train_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
@@ -83,7 +84,7 @@ train_loader = MentionsLoader(
     cycles=args.cycles,
 )
 
-test_loader = MentionsLoader(
+test_loader = WordMentionLoader(
     args.valid_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
@@ -96,23 +97,22 @@ test_loader = MentionsLoader(
 
 loss = CrossEntropyLoss()
 
-# model = Siames(
-#     debug=True,
-#     word_emb_sizes=[50],
-#     conv_sizes=[64],
-#     out_size=[50],
-#     embedding_size=args.dict_size
-# )
+preconv_size = [args.emb_size] if args.preconv else None
 
-preconv = [args.emb_size] if args.preconv else None
+vectorizer = EmbeddingVectorizer(FastTextEmbeddingBag(model_path=args.emb_path))
+
+preconv = PreConv(
+    word_emb_sizes=[args.emb_size],
+    sent_conv_size=preconv_size,
+    dropout=args.dropout,
+)
 
 model = ARC2(
-    word_emb_sizes=[args.emb_size],
-    sent_conv_size=preconv,
+    vectorizer=vectorizer,
+    preconv=preconv,
     matrix_depth=[args.netsize],
     conv_depth=[args.netsize],
     out_size=[args.netsize],
-    embedding_size=args.dict_size,
     window=2,
     dropout=args.dropout
 )

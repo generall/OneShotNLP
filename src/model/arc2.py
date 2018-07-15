@@ -1,9 +1,14 @@
 import itertools
+
+import fastText
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.nn import EmbeddingBag
+
+import numpy as np
 
 from model.sparse_linear import SparseLinear, pairwise
 
@@ -54,33 +59,83 @@ class MatchMatrix(nn.Module):
         self.interaction.apply(init_weights)
 
 
-class ARC2(nn.Module):
+class FastTextEmbeddingBag(EmbeddingBag):
+    def __init__(self, model_path, learn_emb=False):
+        self.model = fastText.load_model(model_path)
+        input_matrix = self.model.get_input_matrix()
+        input_matrix_shape = input_matrix.shape
+        super().__init__(input_matrix_shape[0], input_matrix_shape[1])
+        self.weight.data.copy_(torch.FloatTensor(input_matrix))
+        self.weight.requires_grad = learn_emb
 
+    def forward(self, words, offsets=None):
+        word_subinds = np.empty([0], dtype=np.int64)
+        word_offsets = [0]
+        for word in words:
+            _, subinds = self.model.get_subwords(word)
+            word_subinds = np.concatenate((word_subinds, subinds))
+            word_offsets.append(word_offsets[-1] + len(subinds))
+        word_offsets = word_offsets[:-1]
+        ind = torch.LongTensor(word_subinds)
+        offsets = torch.LongTensor(word_offsets)
+
+        return super().forward(ind, offsets)
+
+
+class EmbeddingVectorizer(nn.Module):
+    def __init__(self, embedding):
+        super(EmbeddingVectorizer, self).__init__()
+        self.embedding = embedding
+
+    def forward(self, batch):
+        batch_size = len(batch)
+        sent_len = len(batch[0])
+        flatten = list(itertools.chain(*batch))
+
+        return self.embedding(flatten).view(batch_size, sent_len, -1)
+
+
+class SumVectorizer(nn.Module):
     def __init__(
             self,
             word_emb_sizes,
-            matrix_depth,
-            conv_depth,
-            out_size,
-            embedding_size,
-            window,
-            sent_conv_size=None,
-            dropout=0.1
+            embedding_size
     ):
-        super(ARC2, self).__init__()
+        super(SumVectorizer, self).__init__()
+
+        self.embedding_size = embedding_size
+        self.word_emb_sizes = word_emb_sizes
+
+        self.embedding = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes)
+
+    def forward(self, sent_a):
+        return self.embedding(sent_a)
+
+    def weight_init(self, init_foo):
+
+        def init_weights(m):
+            if isinstance(m, (nn.Linear, nn.Conv2d)):
+                init_foo(m.weight)
+
+        self.embedding.apply(init_weights)
+
+
+class PreConv(nn.Module):
+    def __init__(
+            self,
+            word_emb_sizes,
+            sent_conv_size,
+            dropout
+    ):
+        super(PreConv, self).__init__()
+
         self.dropout = dropout
         self.sent_conv_size = sent_conv_size
-        self.window = window
-        self.embedding_size = embedding_size
-        self.out_size = out_size
-        self.conv_depth = conv_depth
-        self.matrix_depth = matrix_depth
         self.word_emb_sizes = word_emb_sizes
         activation = nn.LeakyReLU
 
-        self.embedding = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
-
-        input_to_word_vect = [self.embedding]
+        input_to_word_vect = []
+        self.input_to_vect = None
 
         for from_size, to_size in pairwise(self.word_emb_sizes):
             input_to_word_vect += [
@@ -89,9 +144,10 @@ class ARC2(nn.Module):
                 nn.Dropout(self.dropout),
             ]
 
-        input_to_word_vect.append(nn.Dropout(self.dropout))
+        if len(input_to_word_vect) > 0:
+            self.input_to_vect = nn.Sequential(*input_to_word_vect)
 
-        self.input_to_vect = nn.Sequential(*input_to_word_vect)
+        self.sent_conv = None
 
         if self.sent_conv_size and len(self.sent_conv_size) > 0:
             self.sent_conv = nn.Sequential(*[
@@ -99,10 +155,57 @@ class ARC2(nn.Module):
                 activation(),
                 nn.Dropout(self.dropout),
             ])
-            self.match_layer = MatchMatrix(self.sent_conv_size[-1], self.matrix_depth)
+
+            self.output_size = self.sent_conv_size[-1]
         else:
-            self.sent_conv = None
-            self.match_layer = MatchMatrix(self.word_emb_sizes[-1], self.matrix_depth)
+            self.output_size = self.word_emb_sizes[-1]
+
+    def weight_init(self, init_foo):
+
+        def init_weights(m):
+            if isinstance(m, (nn.Linear, nn.Conv2d)):
+                init_foo(m.weight)
+                # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
+
+        self.input_to_vect.apply(init_weights)
+
+    def forward(self, sent_embedding_a):
+
+        if self.input_to_vect:
+            sent_embedding_a = self.input_to_vect(sent_embedding_a)
+
+        if self.sent_conv:
+            sent_embedding_a = sent_embedding_a.transpose(1, 2)
+            sent_embedding_a = self.sent_conv(sent_embedding_a).transpose(2, 1)
+
+        return sent_embedding_a
+
+
+class ARC2(nn.Module):
+
+    def __init__(
+            self,
+            vectorizer,
+            preconv,
+            matrix_depth,
+            conv_depth,
+            out_size,
+            window,
+            dropout=0.1
+    ):
+        super(ARC2, self).__init__()
+        self.vectorizer = vectorizer
+        self.preconv = preconv
+
+        self.window = window
+        self.out_size = out_size
+        self.conv_depth = conv_depth
+        self.matrix_depth = matrix_depth
+
+        self.dropout = dropout
+        activation = nn.LeakyReLU
+
+        self.match_layer = MatchMatrix(preconv.output_size, self.matrix_depth)
 
         convolutions = [
             torch.nn.Conv2d(self.matrix_depth[-1], self.conv_depth[0], self.window),
@@ -137,26 +240,19 @@ class ARC2(nn.Module):
     def weight_init(self, init_foo):
 
         self.match_layer.weight_init(init_foo)
+        self.vectorizer.weight_init(init_foo)
 
         def init_weights(m):
             if isinstance(m, (nn.Linear, nn.Conv2d)):
                 init_foo(m.weight)
                 # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
 
-        self.input_to_vect.apply(init_weights)
         self.convolution.apply(init_weights)
         self.feed_forward.apply(init_weights)
 
     def forward(self, sent_a, sent_b):
-
-        sent_embedding_a = self.input_to_vect(sent_a)
-        sent_embedding_b = self.input_to_vect(sent_b)
-
-        if self.sent_conv:
-            sent_embedding_a = sent_embedding_a.transpose(1, 2)
-            sent_embedding_b = sent_embedding_b.transpose(1, 2)
-            sent_embedding_a = self.sent_conv(sent_embedding_a).transpose(2, 1)
-            sent_embedding_b = self.sent_conv(sent_embedding_b).transpose(2, 1)
+        sent_embedding_a = self.preconv(self.vectorizer(sent_a))
+        sent_embedding_b = self.preconv(self.vectorizer(sent_b))
 
         match_matrix = self.match_layer(sent_embedding_a, sent_embedding_b)
 
@@ -171,10 +267,3 @@ class ARC2(nn.Module):
         res = self.feed_forward(max_pooling)
 
         return res
-
-
-
-
-
-
-

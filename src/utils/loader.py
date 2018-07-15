@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from config import DATA_DIR
-from utils.text_tools import pad_batch, encode_texts
+from utils.text_tools import pad_batch, encode_texts, pad_list
 
 from multiprocessing import Pool
 
@@ -225,6 +225,26 @@ class MentionsLoader(DataLoader):
                     yield cPickle.load(fd)
                 except Exception as e:
                     break
+
+
+class WordMentionLoader(MentionsLoader):
+    """
+    Mention loader which return raw words instead of hashed ngrams
+    """
+
+    def construct_rels(self, sentences_a, sentences_b, match):
+        batch_a = pad_list(list(map(
+            self.tokenizer,
+            sentences_a
+        )), pad=' ')
+
+        batch_b = pad_list(list(map(
+            self.tokenizer,
+            sentences_b
+        )), pad=' ')
+
+        target = torch.LongTensor(match)
+        return batch_a, batch_b, target
 
 
 if __name__ == '__main__':
