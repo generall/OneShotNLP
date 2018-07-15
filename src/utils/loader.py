@@ -236,19 +236,19 @@ class WordMentionLoader(MentionsLoader):
         batch_a = pad_list(list(map(
             self.tokenizer,
             sentences_a
-        )), pad=' ')
+        )), pad=lambda: " ")
 
         batch_b = pad_list(list(map(
             self.tokenizer,
             sentences_b
-        )), pad=' ')
+        )), pad=lambda: " ")
 
         target = torch.LongTensor(match)
         return batch_a, batch_b, target
 
 
 if __name__ == '__main__':
-    loader = MentionsLoader(filename=MentionsLoader.test_data, read_size=10, batch_size=200, dict_size=100, tokenizer=None, ngrams_flag=1 )
+    loader = MentionsLoader(filename=MentionsLoader.test_data, read_size=10, batch_size=200, dict_size=100, tokenizer=None, ngrams_flag=1)
 
     batch1 = next(loader.read_batches())
 
