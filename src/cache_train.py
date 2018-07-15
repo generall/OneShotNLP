@@ -3,7 +3,7 @@ import random
 
 import nltk
 
-from utils.loader import MentionsLoader
+from utils.loader import MentionsLoader, WordMentionLoader
 
 parser = argparse.ArgumentParser(description='Prepare cache for train data')
 
@@ -29,7 +29,7 @@ args = parser.parse_args()
 
 random.seed(args.seed)
 
-train_loader = MentionsLoader(
+train_loader = WordMentionLoader(
     args.train_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
@@ -41,7 +41,7 @@ train_loader = MentionsLoader(
     force=True
 )
 
-test_loader = MentionsLoader(
+test_loader = WordMentionLoader(
     args.valid_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
