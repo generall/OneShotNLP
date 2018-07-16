@@ -1,4 +1,4 @@
 torch
 tqdm
 nltk
-torchlite
+git+https://github.com/generall/Torchlite.git#egg=torchlite

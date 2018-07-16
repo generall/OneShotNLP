@@ -68,6 +68,15 @@ class FastTextEmbeddingBag(EmbeddingBag):
         self.weight.data.copy_(torch.FloatTensor(input_matrix))
         self.weight.requires_grad = learn_emb
 
+        self.device = None
+
+    def to(self, device=None, **kwargs):
+        # Do not move weights to GPU.
+        if device:
+            self.device = device
+        else:
+            super().to(**kwargs)
+
     def forward(self, words, offsets=None):
         word_subinds = np.empty([0], dtype=np.int64)
         word_offsets = [0]
@@ -79,7 +88,7 @@ class FastTextEmbeddingBag(EmbeddingBag):
         ind = torch.LongTensor(word_subinds)
         offsets = torch.LongTensor(word_offsets)
 
-        return super().forward(ind, offsets)
+        return super().forward(ind, offsets).to(self.device)
 
 
 class EmbeddingVectorizer(nn.Module):
