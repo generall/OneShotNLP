@@ -124,7 +124,7 @@ model.weight_init(lambda x: torch.nn.init.xavier_normal_(x, gain=gain))
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
-optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+optimizer = optim.Adam(filter(lambda x: x.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
 
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 
