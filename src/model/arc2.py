@@ -73,8 +73,10 @@ class FastTextEmbeddingBag(EmbeddingBag):
     def to(self, device=None, **kwargs):
         # Do not move weights to GPU.
         if device:
+            print("DOING OK")
             self.device = device
         else:
+            print("DOING WRONG")
             super().to(**kwargs)
 
     def forward(self, words, offsets=None):
@@ -95,6 +97,12 @@ class EmbeddingVectorizer(nn.Module):
     def __init__(self, embedding):
         super(EmbeddingVectorizer, self).__init__()
         self.embedding = embedding
+
+    def to(self, device=None, **kwargs):
+        if device:
+            self.embedding.to(device, **kwargs)
+        else:
+            super().to(**kwargs)
 
     def forward(self, batch):
         batch_size = len(batch)
@@ -250,6 +258,16 @@ class ARC2(nn.Module):
         feed_forward.append(nn.Softmax(dim=1))
 
         self.feed_forward = nn.Sequential(*feed_forward)
+
+    def to(self, device=None, **kwargs):
+        if device:
+            self.vectorizer.to(device, **kwargs)
+            self.preconv.to(device, **kwargs)
+            self.match_layer.to(device, **kwargs)
+            self.convolution.to(device, **kwargs)
+            self.feed_forward.to(device, **kwargs)
+        else:
+            super().to(**kwargs)
 
     def weight_init(self, init_foo):
 
