@@ -94,6 +94,9 @@ class EmbeddingVectorizer(nn.Module):
 
         return self.embedding(flatten).view(batch_size, sent_len, -1)
 
+    def weight_init(self, init_foo):
+        pass
+
 
 class SumVectorizer(nn.Module):
     def __init__(
