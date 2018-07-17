@@ -177,9 +177,9 @@ class MentionsLoader(DataLoader):
 
     def construct_rels(self, sentences_a, sentences_b, match):
         batch_a = torch.from_numpy(pad_batch(
-                encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
+            encode_texts(sentences_a, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
         batch_b = torch.from_numpy(pad_batch(
-                encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
+            encode_texts(sentences_b, self.dict_size, tokenizer=self.tokenizer, ngrams=self.ngrams_flag)))
         target = torch.LongTensor(match)
 
         return batch_a, batch_b, target
@@ -247,8 +247,31 @@ class WordMentionLoader(MentionsLoader):
         return batch_a, batch_b, target
 
 
+class EmbeddingMentionLoader(MentionsLoader):
+
+    def __init__(self, filename, read_size, batch_size, dict_size, tokenizer, ngrams_flag, vectorizer, **kwargs):
+        super().__init__(filename, read_size, batch_size, dict_size, tokenizer, ngrams_flag, **kwargs)
+        self.vectorizer = vectorizer
+
+    def construct_rels(self, sentences_a, sentences_b, match):
+
+        batch_a = self.vectorizer(pad_list(list(map(
+            self.tokenizer,
+            sentences_a
+        )), pad=lambda: " "))
+
+        batch_b = self.vectorizer(pad_list(list(map(
+            self.tokenizer,
+            sentences_b
+        )), pad=lambda: " "))
+
+        target = torch.LongTensor(match)
+        return batch_a, batch_b, target
+
+
 if __name__ == '__main__':
-    loader = MentionsLoader(filename=MentionsLoader.test_data, read_size=10, batch_size=200, dict_size=100, tokenizer=None, ngrams_flag=1)
+    loader = MentionsLoader(filename=MentionsLoader.test_data, read_size=10, batch_size=200, dict_size=100,
+                            tokenizer=None, ngrams_flag=1)
 
     batch1 = next(loader.read_batches())
 

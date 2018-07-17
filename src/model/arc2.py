@@ -1,14 +1,6 @@
-import itertools
-
-import fastText
 import torch
-import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.nn import EmbeddingBag
-
-import numpy as np
 
 from model.sparse_linear import SparseLinear, pairwise
 
@@ -57,62 +49,6 @@ class MatchMatrix(nn.Module):
                 # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
 
         self.interaction.apply(init_weights)
-
-
-class FastTextEmbeddingBag(EmbeddingBag):
-    def __init__(self, model_path, learn_emb=False):
-        self.model = fastText.load_model(model_path)
-        input_matrix = self.model.get_input_matrix()
-        input_matrix_shape = input_matrix.shape
-        super().__init__(input_matrix_shape[0], input_matrix_shape[1])
-        self.weight.data.copy_(torch.FloatTensor(input_matrix))
-        self.weight.requires_grad = learn_emb
-
-        self.device = None
-
-    def to(self, device=None, **kwargs):
-        # Do not move weights to GPU.
-        if device:
-            print("DOING OK")
-            self.device = device
-        else:
-            print("DOING WRONG")
-            super().to(**kwargs)
-
-    def forward(self, words, offsets=None):
-        word_subinds = np.empty([0], dtype=np.int64)
-        word_offsets = [0]
-        for word in words:
-            _, subinds = self.model.get_subwords(word)
-            word_subinds = np.concatenate((word_subinds, subinds))
-            word_offsets.append(word_offsets[-1] + len(subinds))
-        word_offsets = word_offsets[:-1]
-        ind = torch.LongTensor(word_subinds)
-        offsets = torch.LongTensor(word_offsets)
-
-        return super().forward(ind, offsets).to(self.device)
-
-
-class EmbeddingVectorizer(nn.Module):
-    def __init__(self, embedding):
-        super(EmbeddingVectorizer, self).__init__()
-        self.embedding = embedding
-
-    def to(self, device=None, **kwargs):
-        if device:
-            self.embedding.to(device, **kwargs)
-        else:
-            super().to(**kwargs)
-
-    def forward(self, batch):
-        batch_size = len(batch)
-        sent_len = len(batch[0])
-        flatten = list(itertools.chain(*batch))
-
-        return self.embedding(flatten).view(batch_size, sent_len, -1)
-
-    def weight_init(self, init_foo):
-        pass
 
 
 class SumVectorizer(nn.Module):
@@ -259,20 +195,15 @@ class ARC2(nn.Module):
 
         self.feed_forward = nn.Sequential(*feed_forward)
 
-    def to(self, device=None, **kwargs):
-        if device:
-            self.vectorizer.to(device, **kwargs)
-            self.preconv.to(device, **kwargs)
-            self.match_layer.to(device, **kwargs)
-            self.convolution.to(device, **kwargs)
-            self.feed_forward.to(device, **kwargs)
-        else:
-            super().to(**kwargs)
-
     def weight_init(self, init_foo):
 
         self.match_layer.weight_init(init_foo)
-        self.vectorizer.weight_init(init_foo)
+
+        if self.vectorizer:
+            self.vectorizer.weight_init(init_foo)
+
+        if self.preconv:
+            self.preconv.weight_init(init_foo)
 
         def init_weights(m):
             if isinstance(m, (nn.Linear, nn.Conv2d)):
@@ -283,10 +214,16 @@ class ARC2(nn.Module):
         self.feed_forward.apply(init_weights)
 
     def forward(self, sent_a, sent_b):
-        sent_embedding_a = self.preconv(self.vectorizer(sent_a))
-        sent_embedding_b = self.preconv(self.vectorizer(sent_b))
 
-        match_matrix = self.match_layer(sent_embedding_a, sent_embedding_b)
+        if self.vectorizer:
+            sent_a = self.vectorizer(sent_a)
+            sent_b = self.vectorizer(sent_b)
+
+        if self.preconv:
+            sent_a = self.preconv(sent_a)
+            sent_b = self.preconv(sent_a)
+
+        match_matrix = self.match_layer(sent_a, sent_b)
 
         match_matrix = match_matrix.transpose(3, 1)  # Output: (N, Channels, Height, Width)
 

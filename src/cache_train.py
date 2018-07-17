@@ -3,7 +3,8 @@ import random
 
 import nltk
 
-from utils.loader import MentionsLoader, WordMentionLoader
+from model.embedding import EmbeddingVectorizer, FastTextEmbeddingBag
+from utils.loader import MentionsLoader, WordMentionLoader, EmbeddingMentionLoader
 
 parser = argparse.ArgumentParser(description='Prepare cache for train data')
 
@@ -20,16 +21,16 @@ parser.add_argument('--batch-size', type=int, default=1000)
 parser.add_argument('--dict-size', type=int, default=50000)
 parser.add_argument('--ngram', type=bool, default=False)
 parser.add_argument('--parallel', type=int, default=0)
-
 parser.add_argument('--cycles', type=int, default=1)
-
 parser.add_argument('--seed', type=int, default=42)
+parser.add_argument('--emb-path', type=str, default=None)
 
 args = parser.parse_args()
-
 random.seed(args.seed)
 
-train_loader = WordMentionLoader(
+vectorizer = EmbeddingVectorizer(FastTextEmbeddingBag(model_path=args.emb_path))
+
+train_loader = EmbeddingMentionLoader(
     args.train_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
@@ -38,10 +39,10 @@ train_loader = WordMentionLoader(
     ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
-    force=True
+    vectorizer=vectorizer
 )
 
-test_loader = WordMentionLoader(
+test_loader = EmbeddingMentionLoader(
     args.valid_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
@@ -50,7 +51,7 @@ test_loader = WordMentionLoader(
     ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
-    force=True
+    vectorizer=vectorizer
 )
 
 
