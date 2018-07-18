@@ -19,7 +19,7 @@ from config import TB_DIR, MODELS_DIR
 from model.arc2 import ARC2, PreConv
 from model.embedding import EmbeddingVectorizer, FastTextEmbeddingBag
 from model.loss import AccuracyMetric, CrossEntropyLoss
-from utils.loader import MentionsLoader, WordMentionLoader, EmbeddingMentionLoader
+from utils.loader import MentionsLoader, EmbeddingMentionLoader
 from utils.loggers import ModelParamsLogger
 
 
@@ -39,9 +39,9 @@ parser.add_argument('--epoch', type=int, default=100)
 parser.add_argument('--save-every', type=int, default=10)
 parser.add_argument('--read-size', type=int, default=250)
 parser.add_argument('--batch-size', type=int, default=1000)
-parser.add_argument('--dict-size', type=int, default=50000)
+# parser.add_argument('--dict-size', type=int, default=50000)
 parser.add_argument('--cuda', type=bool, default=False)
-parser.add_argument('--ngram', type=bool, default=False)
+# parser.add_argument('--ngram', type=bool, default=False)
 parser.add_argument('--parallel', type=int, default=0)
 parser.add_argument('--patience', type=int, default=10)
 parser.add_argument('--run', default='none', help='name of current run for tensorboard')
@@ -67,24 +67,20 @@ train_loader = EmbeddingMentionLoader(
     args.train_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
-    dict_size=args.dict_size,
     tokenizer=tokenizer,
-    ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
-    vectorizer=vectorizer
+    vectorizer=vectorizer,
 )
 
 test_loader = EmbeddingMentionLoader(
     args.valid_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
-    dict_size=args.dict_size,
     tokenizer=tokenizer,
-    ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
-    vectorizer=vectorizer
+    vectorizer=vectorizer,
 )
 
 loss = CrossEntropyLoss()
@@ -114,7 +110,8 @@ model.weight_init(lambda x: torch.nn.init.xavier_normal_(x, gain=gain))
 if args.restore_model:
     ModelSaverCallback.restore_model_from_file(model, args.restore_model, load_with_cpu=(not args.cuda))
 
-optimizer = optim.Adam(filter(lambda x: x.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
+optimizer = optim.Adam(filter(lambda x: x.requires_grad, model.parameters()), lr=args.lr,
+                       weight_decay=args.weight_decay)
 
 run_name = args.run + '-' + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
 

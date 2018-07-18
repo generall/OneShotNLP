@@ -124,8 +124,8 @@ class PreConv(nn.Module):
             if isinstance(m, (nn.Linear, nn.Conv2d)):
                 init_foo(m.weight)
                 # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
-
-        self.input_to_vect.apply(init_weights)
+        if self.input_to_vect:
+            self.input_to_vect.apply(init_weights)
 
     def forward(self, sent_embedding_a):
 

@@ -28,7 +28,9 @@ parser.add_argument('--emb-path', type=str, default=None)
 args = parser.parse_args()
 random.seed(args.seed)
 
+
 vectorizer = EmbeddingVectorizer(FastTextEmbeddingBag(model_path=args.emb_path))
+
 
 train_loader = EmbeddingMentionLoader(
     args.train_data,
@@ -39,7 +41,8 @@ train_loader = EmbeddingMentionLoader(
     ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
-    vectorizer=vectorizer
+    vectorizer=vectorizer,
+    force=True
 )
 
 test_loader = EmbeddingMentionLoader(
@@ -51,7 +54,8 @@ test_loader = EmbeddingMentionLoader(
     ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
-    vectorizer=vectorizer
+    vectorizer=vectorizer,
+    force=True
 )
 
 
