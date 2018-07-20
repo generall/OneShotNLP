@@ -98,8 +98,8 @@ model = ARC2(
     vectorizer=None,
     preconv=preconv,
     matrix_depth=[args.netsize],
-    conv_depth=[args.netsize],
-    out_size=[args.netsize],
+    conv_depth=[args.netsize, args.netsize / 2],
+    out_size=[args.netsize / 2],
     window=2,
     dropout=args.dropout
 )

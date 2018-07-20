@@ -173,6 +173,7 @@ class ARC2(nn.Module):
 
         for from_size, to_size in pairwise(self.conv_depth):
             convolutions += [
+                torch.nn.MaxPool2d(2, padding=1),
                 torch.nn.Conv2d(from_size, to_size, self.window),
                 activation(),
                 nn.Dropout(self.dropout),
@@ -221,7 +222,7 @@ class ARC2(nn.Module):
 
         if self.preconv:
             sent_a = self.preconv(sent_a)
-            sent_b = self.preconv(sent_a)
+            sent_b = self.preconv(sent_b)
 
         match_matrix = self.match_layer(sent_a, sent_b)
 
