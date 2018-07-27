@@ -16,12 +16,12 @@ python train_arcii.py --cuda=1 --epoch 10 --dropout 0.5\
                       --cycles 1 --preconv 1 --emb-path '../data/wiki.en.bin' |& tee run.sh.log
 ```
 
-Validation accuracy: `0.85`
+Validation accuracy: `0.88`
 
 Eval
 
 ```bash
-
+python predict.py --emb-path ../data/wiki.en.bin --model ../data/models/ARC2_best.pth --input <input_file>
 ```
 
 
