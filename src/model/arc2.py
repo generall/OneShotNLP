@@ -10,9 +10,11 @@ class MatchMatrix(nn.Module):
     def __init__(
             self,
             input_size,
-            matrix_depth
+            matrix_depth,
+            dropout
     ):
         super(MatchMatrix, self).__init__()
+        self.dropout = dropout
         activation = nn.LeakyReLU
 
         self.matrix_depth = matrix_depth
@@ -25,7 +27,8 @@ class MatchMatrix(nn.Module):
         for from_size, to_size in pairwise(self.matrix_depth):
             interaction += [
                 nn.Linear(from_size, to_size),
-                activation()
+                activation(),
+                nn.Dropout(self.dropout)
             ]
 
         self.interaction = nn.Sequential(*interaction)
@@ -111,7 +114,7 @@ class PreConv(nn.Module):
             self.sent_conv = nn.Sequential(*[
                 torch.nn.Conv1d(self.word_emb_sizes[-1], self.sent_conv_size[0], self.window),
                 activation(),
-                nn.Dropout(self.dropout),
+                nn.Dropout(0.2),
             ])
 
             self.output_size = self.sent_conv_size[-1]
@@ -163,12 +166,11 @@ class ARC2(nn.Module):
         self.dropout = dropout
         activation = nn.LeakyReLU
 
-        self.match_layer = MatchMatrix(preconv.output_size, self.matrix_depth)
+        self.match_layer = MatchMatrix(preconv.output_size, self.matrix_depth, dropout=self.dropout)
 
         convolutions = [
             torch.nn.Conv2d(self.matrix_depth[-1], self.conv_depth[0], self.window),
             activation(),
-            nn.Dropout(self.dropout)
         ]
 
         for from_size, to_size in pairwise(self.conv_depth):
@@ -176,7 +178,6 @@ class ARC2(nn.Module):
                 torch.nn.MaxPool2d(2, padding=1),
                 torch.nn.Conv2d(from_size, to_size, self.window),
                 activation(),
-                nn.Dropout(self.dropout),
             ]
 
         self.convolution = nn.Sequential(*convolutions)
@@ -192,6 +193,7 @@ class ARC2(nn.Module):
                 torch.nn.Linear(from_size, to_size)
             ]
 
+        feed_forward.append(nn.Linear(in_features=self.out_size[-1], out_features=2))
         feed_forward.append(nn.Softmax(dim=1))
 
         self.feed_forward = nn.Sequential(*feed_forward)

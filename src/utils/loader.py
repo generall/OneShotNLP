@@ -12,7 +12,9 @@ from torch.utils.data import DataLoader
 from config import DATA_DIR
 from utils.text_tools import pad_batch, encode_texts, pad_list
 
-from multiprocessing import Pool
+from multiprocessing import Pool, Semaphore
+
+import numpy as np
 
 import _pickle as cPickle
 
@@ -66,6 +68,8 @@ class MentionsLoader(DataLoader):
         self.cached = False
         self.stream = False
 
+        self.file_len = None
+
         if not force:
             self.data = []
             if os.path.exists(self.filename + ".pkl"):
@@ -91,11 +95,14 @@ class MentionsLoader(DataLoader):
 
         return fd
 
-    def read_batches(self):
+    def read_batches(self, semaphore=None):
         fd = self.get_file_iterator(self.filename)
         reader = self.read_lines(fd)
 
         while True:
+            if semaphore is not None:
+                semaphore.acquire()
+
             batch = list(itertools.islice(reader, self.read_size))
             groups = defaultdict(list)
             for entity in batch:
@@ -115,7 +122,8 @@ class MentionsLoader(DataLoader):
         :param row:
         :return:
         """
-        return " ".join([row[1], self.mention_placeholder, row[3]]).strip()
+        length_limit = 150  # pair of tweets
+        return " ".join([row[1][-length_limit:], self.mention_placeholder, row[3][:length_limit]]).strip()
 
     def random_batch_constructor(self, groups, size=None):
         """
@@ -136,11 +144,18 @@ class MentionsLoader(DataLoader):
 
         n = 0
 
+        tries = 10000
+
         while n < size:
             positive_group, negative_group = random.sample(keys, 2)
 
             if len(groups[positive_group]) < 2:
+                tries -= 1
+                if tries < 0:
+                    raise RuntimeWarning("Bad bath, can't find any group larges than 1")
                 continue  # Can't use this small group as a base
+
+            tries = 10000
 
             base, positive = random.sample(groups[positive_group], 2)
 
@@ -169,7 +184,12 @@ class MentionsLoader(DataLoader):
 
     def iter_pairs_batch(self):
         for batch in self.read_batches():
-            yield self.random_batch_constructor(batch, self.batch_size)
+            try:
+                rnd_pairs_batch = self.random_batch_constructor(batch, self.batch_size)
+                yield rnd_pairs_batch
+            except RuntimeWarning as e:
+                print(e)
+                print('Skip batch')
 
     def construct_rels(self, sentences_a, sentences_b, match):
         raise NotImplementedError()
@@ -177,12 +197,11 @@ class MentionsLoader(DataLoader):
     def full_construct(self, batch):
         return self.construct_rels(*self.random_batch_constructor(batch))
 
-    def __iter__(self):
-        """
-        Iterate over data.
+    @classmethod
+    def to_torch(cls, batch: tuple):
+        return tuple(map(torch.from_numpy, batch))
 
-        :return:
-        """
+    def iter_batches(self):
         if self.cached:
             if self.stream:
                 yield from self.read_cache(self.filename + '.pkl')
@@ -192,15 +211,30 @@ class MentionsLoader(DataLoader):
             for i in range(self.cycles):
                 if self.parallel > 0:
                     with Pool(self.parallel) as pool:
-                        yield from pool.imap(self.full_construct, self.read_batches())
+                        semaphore = Semaphore(self.parallel * 10)
+                        for batch in pool.imap(self.full_construct, self.read_batches(semaphore)):
+                            yield batch
+                            semaphore.release()
                 else:
                     for batch in self.read_batches():
                         yield self.full_construct(batch)
 
+    def __iter__(self):
+        """
+        Iterate over data.
+
+        :return:
+        """
+        yield from map(MentionsLoader.to_torch, self.iter_batches())
+
     def __len__(self):
-        fd = self.get_file_iterator(self.filename)
-        num_lines = sum(1 for _ in fd)
-        return int(num_lines / self.read_size) * self.cycles
+        if self.file_len is not None:
+            return self.file_len
+        else:
+            fd = self.get_file_iterator(self.filename)
+            num_lines = sum(1 for _ in fd)
+            self.file_len = int(num_lines / self.read_size) * self.cycles
+            return self.file_len
 
     def cache_pickle(self, filename):
         with open(filename, 'wb') as fd:
@@ -266,14 +300,17 @@ class EmbeddingMentionLoader(MentionsLoader):
         batch_a = self.__class__.vectorizer(pad_list(list(map(
             self.tokenizer,
             sentences_a
-        )), pad=lambda: " "))
+        )), pad=lambda: " ")).numpy()
+
+        # Convert to numpy to force serialization in multiprocessing
+        # https://github.com/pytorch/pytorch/issues/973
 
         batch_b = self.vectorizer(pad_list(list(map(
             self.tokenizer,
             sentences_b
-        )), pad=lambda: " "))
+        )), pad=lambda: " ")).numpy()
 
-        target = torch.LongTensor(match)
+        target = np.array(match)
         return batch_a, batch_b, target
 
 

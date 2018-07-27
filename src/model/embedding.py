@@ -41,3 +41,21 @@ class EmbeddingVectorizer(nn.Module):
         flatten = list(itertools.chain(*batch))
 
         return self.embedding(flatten).view(batch_size, sent_len, -1)
+
+
+class ModelVectorizer:
+
+    def __init__(self, model_path):
+        self.model = fastText.load_model(model_path)
+
+    def convert(self, batch):
+        mtx_batch = []
+        for sent in batch:
+            mtx_sent = []
+            for token in sent:
+                mtx_sent.append(self.model.get_word_vector(token))
+            mtx_sent = np.stack(mtx_sent)
+            mtx_batch.append(mtx_sent)
+        mtx_batch = np.stack(mtx_batch)
+
+        return torch.from_numpy(mtx_batch)

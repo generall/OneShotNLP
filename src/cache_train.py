@@ -2,9 +2,17 @@ import argparse
 import random
 
 import nltk
+import torch
+from torchlite.torch.learner import Learner
+from torchlite.torch.learner.cores import ClassifierCore
+from torchlite.torch.train_callbacks import TensorboardVisualizerCallback, ModelSaverCallback
 
+from config import MODELS_DIR
+from model.arc2 import ARC2, PreConv
 from model.embedding import EmbeddingVectorizer, FastTextEmbeddingBag
+from model.loss import AccuracyMetric, CrossEntropyLoss
 from utils.loader import MentionsLoader, WordMentionLoader, EmbeddingMentionLoader
+from utils.loggers import ModelParamsLogger
 
 parser = argparse.ArgumentParser(description='Prepare cache for train data')
 
@@ -28,17 +36,13 @@ parser.add_argument('--emb-path', type=str, default=None)
 args = parser.parse_args()
 random.seed(args.seed)
 
-
 vectorizer = EmbeddingVectorizer(FastTextEmbeddingBag(model_path=args.emb_path))
-
 
 train_loader = EmbeddingMentionLoader(
     args.train_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
-    dict_size=args.dict_size,
     tokenizer=tokenizer,
-    ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
     vectorizer=vectorizer,
@@ -49,15 +53,12 @@ test_loader = EmbeddingMentionLoader(
     args.valid_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
-    dict_size=args.dict_size,
     tokenizer=tokenizer,
-    ngrams_flag=args.ngram,
     parallel=args.parallel,
     cycles=args.cycles,
     vectorizer=vectorizer,
     force=True
 )
-
 
 train_loader.cache_pickle(args.train_data + '.pkl')
 test_loader.cache_pickle(args.valid_data + '.pkl')

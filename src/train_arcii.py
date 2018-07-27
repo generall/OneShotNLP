@@ -24,7 +24,8 @@ from utils.loggers import ModelParamsLogger
 
 
 def tokenizer(text, alpha_only=True):  # create a tokenizer function
-    return [tok for tok in nltk.word_tokenize(text) if (not alpha_only or tok.isalpha())]
+    words = [tok for tok in nltk.word_tokenize(text) if (not alpha_only or tok.isalpha())]
+    return words
 
 
 parser = argparse.ArgumentParser(description='Train One Shot CDSSM')
@@ -98,8 +99,8 @@ model = ARC2(
     vectorizer=None,
     preconv=preconv,
     matrix_depth=[args.netsize],
-    conv_depth=[args.netsize, args.netsize / 2],
-    out_size=[args.netsize / 2],
+    conv_depth=[args.netsize, args.netsize // 2, args.netsize // 2],
+    out_size=[args.netsize // 2],
     window=2,
     dropout=args.dropout
 )
