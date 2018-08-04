@@ -6,6 +6,8 @@ from torch.nn import EmbeddingBag
 import torch.nn as nn
 import numpy as np
 
+from utils.disc_vectors import DiscVectors
+
 
 class FastTextEmbeddingBag(EmbeddingBag):
     def __init__(self, model_path, learn_emb=False):
@@ -59,3 +61,9 @@ class ModelVectorizer:
         mtx_batch = np.stack(mtx_batch)
 
         return torch.from_numpy(mtx_batch)
+
+
+class OnDiskVectorizer(ModelVectorizer):
+
+    def __init__(self, mtx_path, meta_path):
+        self.model = DiscVectors(mtx_path, meta_path)

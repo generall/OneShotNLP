@@ -3,7 +3,7 @@ import argparse
 
 from torchlite.torch.train_callbacks import ModelSaverCallback
 
-from model.embedding import EmbeddingVectorizer, FastTextEmbeddingBag, ModelVectorizer
+from model.embedding import ModelVectorizer, OnDiskVectorizer
 from model.arc2 import ARC2, PreConv
 
 
@@ -21,6 +21,10 @@ parser.add_argument('--input-file', dest='input_file')
 parser.add_argument('--cuda', type=bool, default=False)
 parser.add_argument('--emb-path', type=str, default=None)
 
+parser.add_argument('--mtx-path', type=str, default=None)
+parser.add_argument('--meta-path', type=str, default=None)
+
+
 
 net_params = {
     'preconv': True,
@@ -33,7 +37,11 @@ net_params = {
 
 args = parser.parse_args()
 
-vectorizer = ModelVectorizer(model_path=args.emb_path)
+if args.emb_path:
+    vectorizer = ModelVectorizer(model_path=args.emb_path)
+else:
+    vectorizer = OnDiskVectorizer(mtx_path=args.mtx_path, meta_path=args.meta_path)
+
 
 preconv_size = net_params['preconv_size'] if net_params['preconv'] else None
 
@@ -71,7 +79,7 @@ with open(args.input_file) as fd:
 
         score = model.forward(sent_a_vect, sent_b_vect)
 
-        print(line, score)
+        print(line, score[0][1].item())
 
 
 
