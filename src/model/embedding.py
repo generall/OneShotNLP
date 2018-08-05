@@ -60,7 +60,7 @@ class ModelVectorizer:
             mtx_batch.append(mtx_sent)
         mtx_batch = np.stack(mtx_batch)
 
-        return torch.from_numpy(mtx_batch)
+        return torch.from_numpy(mtx_batch).float()
 
 
 class OnDiskVectorizer(ModelVectorizer):
