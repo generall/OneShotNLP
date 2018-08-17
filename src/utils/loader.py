@@ -1,6 +1,5 @@
 import gzip
 import itertools
-import os
 import random
 import re
 from collections import defaultdict
@@ -9,78 +8,14 @@ from zipfile import ZipFile
 import torch
 from torch.utils.data import DataLoader
 
-from config import DATA_DIR
 from utils.text_tools import pad_batch, encode_texts, pad_list
 
 from multiprocessing import Pool, Semaphore
 
 import numpy as np
 
-import _pickle as cPickle
 
-
-class MentionsLoader(DataLoader):
-    """
-    This is custom test loader for mentions data
-
-    """
-
-    test_data = os.path.join(DATA_DIR, 'data_example.tsv')
-
-    debug_train = os.path.join(DATA_DIR, 'debug_data', 'simple_data2_train.tsv')
-    debug_valid = os.path.join(DATA_DIR, 'debug_data', 'simple_data2_valid.tsv')
-
-    @classmethod
-    def read_lines(cls, fd):
-        for line in fd:
-            yield line.strip('\n').split('\t')
-
-    def __init__(
-            self,
-            filename,
-            read_size,
-            batch_size,
-            tokenizer,
-            parallel=0,
-            cycles=1,
-            allow_cache_mem_mb=1,
-            force=False
-    ):
-        """
-
-        :param filename: file to read from
-        :param read_size: number of sentences to read from file per batch
-        :param batch_size: size of output batch
-        :param dict_size: max number of features
-        :param tokenizer: function to split text into tokens
-        :param ngrams_flag: use ngrams or words
-        :param cycles: number of full iterations per epoch
-        """
-        self.allow_cache_mem_mb = allow_cache_mem_mb
-        self.cycles = cycles
-        self.parallel = parallel
-        self.tokenizer = tokenizer
-        self.batch_size = batch_size
-        self.read_size = read_size
-        self.filename = filename
-        self.mention_placeholder = "XXXXX"
-
-        self.cached = False
-        self.stream = False
-
-        self.file_len = None
-
-        if not force:
-            self.data = []
-            if os.path.exists(self.filename + ".pkl"):
-                self.cached = True
-                size = os.path.getsize(self.filename + ".pkl") / 1024 / 1024  # In Mb
-                if size > self.allow_cache_mem_mb:
-                    self.stream = True
-                    print("Streaming cahce from ", self.filename + ".pkl")
-                else:
-                    print("Loading cahce from ", self.filename + "pkl")
-                    self.data = list(self.read_cache(self.filename + ".pkl"))
+class BatchReader:
 
     @classmethod
     def get_file_iterator(cls, filename):
@@ -95,25 +30,26 @@ class MentionsLoader(DataLoader):
 
         return fd
 
+    @classmethod
+    def read_lines(cls, fd):
+        for line in fd:
+            yield line.strip('\n').split('\t')
+
     def read_batches(self, semaphore=None):
-        fd = self.get_file_iterator(self.filename)
-        reader = self.read_lines(fd)
+        raise NotImplementedError()
 
-        while True:
-            if semaphore is not None:
-                semaphore.acquire()
+    def __len__(self):
+        raise NotImplementedError()
 
-            batch = list(itertools.islice(reader, self.read_size))
-            groups = defaultdict(list)
-            for entity in batch:
-                groups[entity[0]].append(entity)
 
-            if len(groups) > 1:
-                # Skip groups with only one entity
-                yield groups
+class WikiLinksReader(BatchReader):
 
-            if len(batch) < self.read_size:
-                break
+    def __init__(self, filename, read_size, batch_size):
+        self.batch_size = batch_size
+        self.read_size = read_size
+        self.filename = filename
+        self.mention_placeholder = "XXXXX"
+        self.file_len = None
 
     def row_to_example(self, row):
         """
@@ -182,42 +118,124 @@ class MentionsLoader(DataLoader):
 
         return sentences, sentences_other, match
 
-    def iter_pairs_batch(self):
-        for batch in self.read_batches():
-            try:
-                rnd_pairs_batch = self.random_batch_constructor(batch, self.batch_size)
-                yield rnd_pairs_batch
-            except RuntimeWarning as e:
-                print(e)
-                print('Skip batch')
+    def read_batches(self, semaphore=None):
+        fd = self.get_file_iterator(self.filename)
+        reader = self.read_lines(fd)
+
+        while True:
+            if semaphore is not None:
+                semaphore.acquire()
+
+            batch = list(itertools.islice(reader, self.read_size))
+            groups = defaultdict(list)
+            for entity in batch:
+                groups[entity[0]].append(entity)
+
+            if len(groups) > 1:
+                # Skip groups with only one entity
+                yield self.random_batch_constructor(groups)
+
+            if len(batch) < self.read_size:
+                break
+
+    def __len__(self):
+        if self.file_len is not None:
+            return self.file_len
+        else:
+            fd = self.get_file_iterator(self.filename)
+            num_lines = sum(1 for _ in fd)
+            self.file_len = int(num_lines / self.read_size)
+            return self.file_len
+
+
+class SimpleReader(BatchReader):
+
+    def __init__(self, filename, batch_size):
+        self.batch_size = batch_size
+        self.filename = filename
+        self.file_len = None
+
+    def read_batches(self, semaphore=None):
+        fd = self.get_file_iterator(self.filename)
+        reader = self.read_lines(fd)
+
+        batch_sent_a = []
+        batch_sent_b = []
+        batch_match = []
+        for row in reader:
+            sent_a, sent_b, match = row
+            match = int(match)
+
+            batch_sent_a.append(sent_a)
+            batch_sent_b.append(sent_b)
+            batch_match.append(match)
+
+            if len(batch_sent_a) > self.batch_size:
+                yield batch_sent_a, batch_sent_b, batch_match
+
+                batch_sent_a = []
+                batch_sent_b = []
+                batch_match = []
+
+        if len(batch_sent_a) > 0:
+            yield batch_sent_a, batch_sent_b, batch_match
+
+    def __len__(self):
+        if self.file_len is not None:
+            return self.file_len
+        else:
+            fd = self.get_file_iterator(self.filename)
+            num_lines = sum(1 for _ in fd)
+            self.file_len = int(num_lines / self.batch_size)
+            return self.file_len
+
+
+class MentionsLoader(DataLoader):
+    """
+    This is custom test loader for mentions data
+
+    """
+
+    def __init__(
+            self,
+            batch_reader,
+            tokenizer,
+            parallel=0,
+    ):
+        """
+
+        :param batch_reader: object to read raw batches from file
+        :param tokenizer: function to split text into tokens
+        :param parallel: number of data preparation processes
+        """
+        self.batch_reader = batch_reader
+        self.parallel = parallel
+        self.tokenizer = tokenizer
+
+    @property
+    def batch_size(self):
+        return self.batch_reader.batch_size
 
     def construct_rels(self, sentences_a, sentences_b, match):
         raise NotImplementedError()
 
     def full_construct(self, batch):
-        return self.construct_rels(*self.random_batch_constructor(batch))
+        return self.construct_rels(*batch)
 
     @classmethod
     def to_torch(cls, batch: tuple):
         return tuple(map(torch.from_numpy, batch))
 
     def iter_batches(self):
-        if self.cached:
-            if self.stream:
-                yield from self.read_cache(self.filename + '.pkl')
-            else:
-                yield from self.data
+        if self.parallel > 0:
+            with Pool(self.parallel) as pool:
+                semaphore = Semaphore(self.parallel * 10)
+                for batch in pool.imap(self.full_construct, self.batch_reader.read_batches(semaphore)):
+                    yield batch
+                    semaphore.release()
         else:
-            for i in range(self.cycles):
-                if self.parallel > 0:
-                    with Pool(self.parallel) as pool:
-                        semaphore = Semaphore(self.parallel * 10)
-                        for batch in pool.imap(self.full_construct, self.read_batches(semaphore)):
-                            yield batch
-                            semaphore.release()
-                else:
-                    for batch in self.read_batches():
-                        yield self.full_construct(batch)
+            for batch in self.batch_reader.read_batches():
+                yield self.full_construct(batch)
 
     def __iter__(self):
         """
@@ -228,33 +246,13 @@ class MentionsLoader(DataLoader):
         yield from map(MentionsLoader.to_torch, self.iter_batches())
 
     def __len__(self):
-        if self.file_len is not None:
-            return self.file_len
-        else:
-            fd = self.get_file_iterator(self.filename)
-            num_lines = sum(1 for _ in fd)
-            self.file_len = int(num_lines / self.read_size) * self.cycles
-            return self.file_len
-
-    def cache_pickle(self, filename):
-        with open(filename, 'wb') as fd:
-            for batch in self:
-                cPickle.dump(batch, fd)
-
-    @classmethod
-    def read_cache(cls, filename):
-        with open(filename, 'rb') as fd:
-            while True:
-                try:
-                    yield cPickle.load(fd)
-                except Exception as e:
-                    break
+        return len(self.batch_reader)
 
 
 class HashingMentionLoader(MentionsLoader):
 
-    def __init__(self, filename, read_size, batch_size, tokenizer, ngrams_flag, dict_size, **kwargs):
-        super().__init__(filename, read_size, batch_size, tokenizer,  **kwargs)
+    def __init__(self, batch_reader, tokenizer, ngrams_flag, dict_size, **kwargs):
+        super().__init__(batch_reader, tokenizer, **kwargs)
         self.ngrams_flag = ngrams_flag
         self.dict_size = dict_size
 
@@ -288,15 +286,13 @@ class WordMentionLoader(MentionsLoader):
 
 
 class EmbeddingMentionLoader(MentionsLoader):
-
     vectorizer = None
 
-    def __init__(self, filename, read_size, batch_size, tokenizer, vectorizer, **kwargs):
-        super().__init__(filename, read_size, batch_size, tokenizer, **kwargs)
+    def __init__(self, batch_reader, tokenizer, vectorizer, **kwargs):
+        super().__init__(batch_reader, tokenizer, **kwargs)
         self.__class__.vectorizer = vectorizer
 
     def construct_rels(self, sentences_a, sentences_b, match):
-
         batch_a = self.__class__.vectorizer(pad_list(list(map(
             self.tokenizer,
             sentences_a
@@ -320,19 +316,3 @@ class EmbeddingMentionLoader(MentionsLoader):
 class EmbeddingMentionLoaderCos(EmbeddingMentionLoader):
     def target_prep(self, target):
         return target.astype(np.float32) * 2 - 1
-
-
-if __name__ == '__main__':
-    loader = MentionsLoader(filename=MentionsLoader.test_data, read_size=10, batch_size=200, tokenizer=None)
-
-    batch1 = next(loader.read_batches())
-
-    sentences, sentences_other, match = loader.random_batch_constructor(batch1, 100)
-
-    print(sentences[3])
-    print(sentences_other[3])
-    print(match[3])
-
-    print(sentences[4])
-    print(sentences_other[4])
-    print(match[4])

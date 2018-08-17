@@ -100,8 +100,6 @@ if not os.path.exists(tb_dir):
     os.mkdir(tb_dir)
 
 metrics = [
-    # AccuracyMetric(threshold=0),
-    # RocAucMetric(threshold=0)
     CosRocAucMetric(threshold=0)
 ]
 

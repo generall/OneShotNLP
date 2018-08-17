@@ -5,6 +5,7 @@ import torch
 from torch.nn import EmbeddingBag
 import torch.nn as nn
 import numpy as np
+import gensim
 
 from utils.disc_vectors import DiscVectors
 
@@ -67,6 +68,18 @@ class ModelVectorizer:
         mtx_sent = []
         for token in words:
             mtx_sent.append(self.model.get_word_vector(token))
+        mtx_sent = np.stack(mtx_sent)
+        return torch.from_numpy(mtx_sent).float()
+
+
+class GensimVectorizer:
+    def __init__(self, model_path):
+        self.model = gensim.models.FastText.load(model_path)
+
+    def __call__(self, words):
+        mtx_sent = []
+        for token in words:
+            mtx_sent.append(self.model.wv.get_vector(token))
         mtx_sent = np.stack(mtx_sent)
         return torch.from_numpy(mtx_sent).float()
 

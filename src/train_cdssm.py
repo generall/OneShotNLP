@@ -18,7 +18,7 @@ from config import TB_DIR, MODELS_DIR
 from model.embedding import EmbeddingVectorizer, FastTextEmbeddingBag, ModelVectorizer
 from model.loss import AccuracyMetric, RocAucMetric
 from model.siames import Siames
-from utils.loader import MentionsLoader, EmbeddingMentionLoader
+from utils.loader import MentionsLoader, EmbeddingMentionLoader, WikiLinksReader
 from utils.loggers import ModelParamsLogger
 
 
@@ -28,8 +28,8 @@ def tokenizer(text, alpha_only=True):  # create a tokenizer function
 
 parser = argparse.ArgumentParser(description='Train CDSSM model')
 
-parser.add_argument('--train-data', dest='train_data', help='path to train data', default=MentionsLoader.debug_train)
-parser.add_argument('--valid-data', dest='valid_data', help='path to valid data', default=MentionsLoader.debug_valid)
+parser.add_argument('--train-data', dest='train_data', help='path to train data', default="")
+parser.add_argument('--valid-data', dest='valid_data', help='path to valid data', default="")
 
 parser.add_argument('--restore-model', dest='restore_model',
                     help='path to saved model')  # default=os.path.join(MODELS_DIR, 'Siames_epoch-150.pth'))
@@ -57,23 +57,29 @@ args = parser.parse_args()
 
 vectorizer = EmbeddingVectorizer(ModelVectorizer(model_path=args.emb_path))
 
-train_loader = EmbeddingMentionLoader(
-    args.train_data,
+batch_reader_train = WikiLinksReader(
+    filename=args.train_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
+)
+
+train_loader = EmbeddingMentionLoader(
+    batch_reader=batch_reader_train,
     tokenizer=tokenizer,
     parallel=args.parallel,
-    cycles=args.cycles,
     vectorizer=vectorizer,
 )
 
-test_loader = EmbeddingMentionLoader(
-    args.valid_data,
+batch_reader_test = WikiLinksReader(
+    filename=args.valid_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
+)
+
+test_loader = EmbeddingMentionLoader(
+    batch_reader=batch_reader_test,
     tokenizer=tokenizer,
     parallel=args.parallel,
-    cycles=args.cycles,
     vectorizer=vectorizer,
 )
 

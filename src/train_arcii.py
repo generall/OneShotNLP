@@ -19,7 +19,7 @@ from config import TB_DIR, MODELS_DIR
 from model.arc2 import ARC2, PreConv
 from model.embedding import EmbeddingVectorizer, FastTextEmbeddingBag
 from model.loss import AccuracyMetric, CrossEntropyLoss
-from utils.loader import MentionsLoader, EmbeddingMentionLoader
+from utils.loader import MentionsLoader, EmbeddingMentionLoader, WikiLinksReader
 from utils.loggers import ModelParamsLogger
 
 
@@ -64,23 +64,29 @@ torch.manual_seed(args.torch_seed)
 
 vectorizer = EmbeddingVectorizer(FastTextEmbeddingBag(model_path=args.emb_path))
 
-train_loader = EmbeddingMentionLoader(
-    args.train_data,
+batch_reader_train = WikiLinksReader(
+    filename=args.train_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
+)
+
+train_loader = EmbeddingMentionLoader(
+    batch_reader=batch_reader_train,
     tokenizer=tokenizer,
     parallel=args.parallel,
-    cycles=args.cycles,
     vectorizer=vectorizer,
 )
 
-test_loader = EmbeddingMentionLoader(
-    args.valid_data,
+batch_reader_test = WikiLinksReader(
+    filename=args.valid_data,
     read_size=args.read_size,
     batch_size=args.batch_size,
+)
+
+test_loader = EmbeddingMentionLoader(
+    batch_reader=batch_reader_test,
     tokenizer=tokenizer,
     parallel=args.parallel,
-    cycles=args.cycles,
     vectorizer=vectorizer,
 )
 
