@@ -1,5 +1,5 @@
 import torch
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, roc_auc_score
 from torchlite.torch.metrics import Metric
 
 
@@ -83,17 +83,21 @@ class AccuracyMetric(Metric):
         return "accuracy"
 
     def __call__(self, y_pred, y_true):
-        """
 
-        :param y_pred:
-        :param y_true:
-        :return:
-        """
-
-        y_pred = y_pred.cpu().numpy()
+        y_pred = (y_pred.cpu().numpy() > 0.5).astype(int)
         y_true = y_true.cpu().numpy()
-        return accuracy_score(y_pred.argmax(axis=1), y_true)
+        return accuracy_score(y_pred, y_true)
 
+
+class RocAucMetric(Metric):
+    @property
+    def get_name(self):
+        return "roc-auc"
+
+    def __call__(self, y_pred, y_true):
+        y_pred = y_pred.cpu().numpy()
+        y_true = y_true.cpu().numpy().astype(int)
+        return roc_auc_score(y_true, y_pred)
 
 class CrossEntropyLoss:
     def __init__(self):

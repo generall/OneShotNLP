@@ -58,9 +58,17 @@ class ModelVectorizer:
                 mtx_sent.append(self.model.get_word_vector(token))
             mtx_sent = np.stack(mtx_sent)
             mtx_batch.append(mtx_sent)
+
         mtx_batch = np.stack(mtx_batch)
 
         return torch.from_numpy(mtx_batch).float()
+
+    def __call__(self, words):
+        mtx_sent = []
+        for token in words:
+            mtx_sent.append(self.model.get_word_vector(token))
+        mtx_sent = np.stack(mtx_sent)
+        return torch.from_numpy(mtx_sent).float()
 
 
 class OnDiskVectorizer(ModelVectorizer):

@@ -10,87 +10,59 @@ class CDSSM(nn.Module):
 
     def __init__(
             self,
-            word_emb_sizes=None,
-            conv_sizes=None,
-            out_size=None,
+            word_emb_sizes,
+            conv_sizes,
+            out_size,
+            dropout=0.2,
             window=3,
-            embedding_size=20000,
     ):
         super(CDSSM, self).__init__()
 
-        activation = nn.Tanh
+        activation = nn.LeakyReLU
 
-        if out_size is None:
-            out_size = [128]
+        final_activation = nn.Tanh
 
-        if conv_sizes is None:
-            conv_sizes = [300]
-
-        if word_emb_sizes is None:
-            word_emb_sizes = [500]
-
-        self.embedding_size = embedding_size
+        self.dropout = dropout
         self.window = window
         self.out_size = out_size
         self.conv_sizes = conv_sizes
         self.word_emb_sizes = word_emb_sizes
 
-        sparse_linear = SparseLinear(dict_size=self.embedding_size, out_features=self.word_emb_sizes[0])
-
-        input_to_word_vect = [sparse_linear]
-
-        for from_size, to_size in pairwise(self.word_emb_sizes):
-            input_to_word_vect += [
-                nn.Linear(from_size, to_size),
-                activation()
-            ]
-
-        self.input_to_vect = nn.Sequential(*input_to_word_vect)
-
         convolutions = [
-            torch.nn.Conv1d(self.word_emb_sizes[-1], self.conv_sizes[0], self.window),
-            activation()
+            torch.nn.Conv1d(self.word_emb_sizes, self.conv_sizes[0], self.window),
+            activation(),
+            torch.nn.Dropout(self.dropout)
         ]
 
         for from_size, to_size in pairwise(self.conv_sizes):
             convolutions += [
+                torch.nn.MaxPool1d(2, padding=1),
                 torch.nn.Conv1d(from_size, to_size, self.window),
-                activation()
+                activation(),
+                torch.nn.Dropout(self.dropout)
             ]
 
         self.convolution = nn.Sequential(*convolutions)
 
         feed_forward = [
-            nn.Linear(in_features=self.conv_sizes[-1], out_features=self.out_size[0]),
-            activation()
+            nn.Linear(in_features=self.conv_sizes[-1] * 2, out_features=self.out_size[0]),
+            activation(),
+            torch.nn.Dropout(self.dropout)
         ]
 
         for from_size, to_size in pairwise(self.out_size):
             feed_forward += [
                 torch.nn.Linear(from_size, to_size),
-                activation()
+                final_activation(),
+                torch.nn.Dropout(self.dropout)
             ]
 
         self.feed_forward = nn.Sequential(*feed_forward)
-
-    def weight_init(self, init_foo):
-
-        def init_weights(m):
-            if isinstance(m, (nn.Linear, nn.Conv1d)):
-                init_foo(m.weight)
-                # nn.init.xavier_uniform_(m.bias, gain=nn.init.calculate_gain('tanh'))
-
-        self.input_to_vect.apply(init_weights)
-        self.convolution.apply(init_weights)
-        self.feed_forward.apply(init_weights)
 
     def process_sentences(self, sentences):
         """
         :param sentences Tensor (batch_size, sentence_length, word_depth)
         """
-
-        # Compress sparse ngram representation into dense vectors
-        sentences = self.input_to_vect(sentences)
 
         # Prepare for convolution and apply it.
         # Combine 3-word window into single vector
@@ -99,10 +71,14 @@ class CDSSM(nn.Module):
         conv_embedding = self.convolution(sentences)
 
         # Apply max-pooling to compress variable-length sequence of 3-word vectors into single document vector
-        convolutions_size = conv_embedding.size()[2]
-        max_pooling = F.max_pool1d(conv_embedding, kernel_size=convolutions_size).view(-1, self.conv_sizes[-1])
+        convolutions_size = conv_embedding.size()[-1]
+
+        max_pooling = F.max_pool1d(conv_embedding, kernel_size=convolutions_size).squeeze()
+        avg_pooling = F.avg_pool1d(conv_embedding, kernel_size=convolutions_size).squeeze()
+
+        pooling = torch.cat([max_pooling, avg_pooling], dim=1)
 
         # Compress pooled representation even more
-        res = self.feed_forward(max_pooling)
+        res = self.feed_forward(pooling)
 
         return res
