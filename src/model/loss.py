@@ -82,11 +82,14 @@ class AccuracyMetric(Metric):
     def get_name(self):
         return "accuracy"
 
+    def __init__(self, threshold=0.5):
+        self.threshold = threshold
+
     def __call__(self, y_pred, y_true):
 
-        y_pred = (y_pred.cpu().numpy() > 0.5).astype(int)
-        y_true = y_true.cpu().numpy()
-        return accuracy_score(y_pred, y_true)
+        y_pred = (y_pred.cpu().numpy() > self.threshold).astype(int)
+        y_true = (y_true.cpu().numpy() > self.threshold).astype(int)
+        return accuracy_score(y_true, y_pred)
 
 
 class RocAucMetric(Metric):
@@ -94,10 +97,31 @@ class RocAucMetric(Metric):
     def get_name(self):
         return "roc-auc"
 
+    def __init__(self, threshold=0.5):
+        self.threshold = threshold
+
     def __call__(self, y_pred, y_true):
         y_pred = y_pred.cpu().numpy()
-        y_true = y_true.cpu().numpy().astype(int)
+        y_true = (y_true.cpu().numpy() > self.threshold).astype(int)
         return roc_auc_score(y_true, y_pred)
+
+
+class CosRocAucMetric(Metric):
+    @property
+    def get_name(self):
+        return "roc-auc"
+
+    def __init__(self, threshold=0.0):
+        self.threshold = threshold
+        self.cos = torch.nn.CosineSimilarity()
+
+    def __call__(self, vectors, y_true):
+        vect_a, vect_b = vectors
+
+        y_pred = self.cos(vect_a, vect_b).cpu().numpy()
+        y_true = (y_true.cpu().numpy() > self.threshold).astype(int)
+        return roc_auc_score(y_true, y_pred)
+
 
 class CrossEntropyLoss:
     def __init__(self):

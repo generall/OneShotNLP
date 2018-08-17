@@ -310,8 +310,16 @@ class EmbeddingMentionLoader(MentionsLoader):
             sentences_b
         )), pad=lambda: " ")).numpy()
 
-        target = np.array(match).astype(np.float32)
+        target = self.target_prep(np.array(match))
         return batch_a, batch_b, target
+
+    def target_prep(self, target):
+        return target.astype(np.float32)
+
+
+class EmbeddingMentionLoaderCos(EmbeddingMentionLoader):
+    def target_prep(self, target):
+        return target.astype(np.float32) * 2 - 1
 
 
 if __name__ == '__main__':
