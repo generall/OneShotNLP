@@ -1,4 +1,5 @@
 import itertools
+import zlib
 
 import fastText
 import torch
@@ -79,7 +80,16 @@ class GensimVectorizer:
     def __call__(self, words):
         mtx_sent = []
         for token in words:
-            mtx_sent.append(self.model.wv.get_vector(token))
+            try:
+                mtx_sent.append(self.model.wv.get_vector(token))
+            except KeyError:
+                seed = zlib.crc32(token.encode())
+                state = np.random.get_state()
+                np.random.seed(seed)
+                vect = np.random.normal(size=self.model.wv.vector_size)
+                np.random.set_state(state)
+                mtx_sent.append(vect)
+
         mtx_sent = np.stack(mtx_sent)
         return torch.from_numpy(mtx_sent).float()
 

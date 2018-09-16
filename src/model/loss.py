@@ -103,7 +103,10 @@ class RocAucMetric(Metric):
     def __call__(self, y_pred, y_true):
         y_pred = y_pred.cpu().numpy()
         y_true = (y_true.cpu().numpy() > self.threshold).astype(int)
-        return roc_auc_score(y_true, y_pred)
+        try:
+            return roc_auc_score(y_true, y_pred)
+        except ValueError:
+            return 0.5
 
 
 class CosRocAucMetric(Metric):

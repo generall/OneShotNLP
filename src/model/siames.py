@@ -24,6 +24,26 @@ class Siames(nn.Module):
         return out
 
 
+class Matcher(nn.Module):
+
+    def __init__(self, out_size, **kwargs):
+        super(Matcher, self).__init__()
+        self.out_size = out_size
+        self.cdssm_a = CDSSM(out_size=out_size, **kwargs)
+        self.cdssm_b = CDSSM(out_size=out_size, **kwargs)
+
+        self.combination_layer = nn.Linear(self.out_size[-1], 1)
+        self.sm = nn.Sigmoid()
+
+    def forward(self, batch_a, batch_b):
+        vectors_a = self.cdssm_a.process_sentences(batch_a)
+        vectors_b = self.cdssm_b.process_sentences(batch_b)
+
+        out = self.sm(self.combination_layer(vectors_a * vectors_b)).squeeze()
+
+        return out
+
+
 class SiamesCos(nn.Module):
 
     def __init__(self, out_size, **kwargs):
